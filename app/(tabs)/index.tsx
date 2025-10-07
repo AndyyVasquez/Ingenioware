@@ -1,98 +1,171 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
-
-export default function HomeScreen() {
+export default function WelcomeScreen() {
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <View style={styles.container}>
+      {/* Logo y encabezado */}
+      <View style={styles.header}>
+        <View style={styles.logoContainer}>
+          <View style={styles.wings}>
+            <Text style={styles.wingText}>✨</Text>
+          </View>
+          <View style={styles.halo}>
+            <View style={styles.haloRing} />
+          </View>
+          <View style={styles.earth}>
+            <View style={styles.earthInner} />
+          </View>
+        </View>
+        
+        <Text style={styles.title}>Ingeniowave</Text>
+        <Text style={styles.subtitle}>
+          Donde el aprendizaje es una nueva aventura mágica
+        </Text>
+      </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      {/* Pregunta */}
+      <View style={styles.questionContainer}>
+        <Text style={styles.question}>¿Quién está por explorar?</Text>
+      </View>
+
+      {/* Tarjetas de selección */}
+      <View style={styles.cardsContainer}>
+        <TouchableOpacity style={styles.card} activeOpacity={0.8}>
+          <View style={styles.iconCircle}>
+            <Ionicons name="person" size={48} color="#6B4423" />
+          </View>
+          <Text style={styles.cardLabel}>Padres</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.card} activeOpacity={0.8}>
+          <View style={styles.iconCircle}>
+            <Ionicons name="person" size={48} color="#6B4423" />
+          </View>
+          <Text style={styles.cardLabel}>Niña/o</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: '#C8E6F5',
+    paddingTop: 80,
+    paddingHorizontal: 20,
   },
-  stepContainer: {
-    gap: 8,
+  header: {
+    alignItems: 'center',
+    marginBottom: 60,
+  },
+  logoContainer: {
+    width: 120,
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    position: 'relative',
+  },
+  wings: {
+    position: 'absolute',
+    top: 20,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  wingText: {
+    fontSize: 60,
+    opacity: 0.8,
+  },
+  halo: {
+    position: 'absolute',
+    top: 10,
+    alignItems: 'center',
+  },
+  haloRing: {
+    width: 50,
+    height: 15,
+    borderRadius: 25,
+    backgroundColor: '#FFD700',
+    opacity: 0.7,
+  },
+  earth: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#87CEEB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  earthInner: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#5FA3D0',
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#4B0082',
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  subtitle: {
+    fontSize: 14,
+    color: '#333',
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  questionContainer: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  question: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
+  },
+  cardsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 10,
+  },
+  card: {
+    width: 160,
+    height: 160,
+    backgroundColor: '#F5E6D3',
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  iconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#F4A460',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  cardLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
   },
 });
