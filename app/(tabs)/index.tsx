@@ -1,145 +1,155 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Alert, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function WelcomeScreen() {
+  const router = useRouter();
+  const [isParentLoggedIn, setIsParentLoggedIn] = useState(false);
+  const [hasParentAccount, setHasParentAccount] = useState(false);
+
+  useEffect(() => {
+    checkSession();
+  }, []);
+
+  const checkSession = async () => {
+
+     try {
+       const session = await AsyncStorage.getItem('parentSession');
+       const hasAccount = await AsyncStorage.getItem('hasParentAccount');
+       setIsParentLoggedIn(session !== null);
+       setHasParentAccount(hasAccount !== null);
+     } catch (error) {
+       console.error('Error checking session:', error);
+     }
+    
+    setIsParentLoggedIn(false);
+    setHasParentAccount(false); // Cambia a true si ya existe una cuenta
+  };
+
+  const handleParentClick = () => {
+    if (isParentLoggedIn) {
+      // Si ya hay sesión activa, ir directo al dashboard
+      router.push('/dashboardP');
+    } else {
+      // Si no hay sesión, ir a authChoice
+      router.push('/authChoice');
+    }
+  };
+
+  const handleChildClick = () => {
+    if (!hasParentAccount) {
+      // Si no hay cuenta de padre creada
+      Alert.alert(
+        'Cuenta requerida',
+        'Primero un adulto debe crear una cuenta para poder usar la app.',
+        [
+          {
+            text: 'Crear cuenta',
+            onPress: () => router.push('/authChoice'),
+          },
+          {
+            text: 'Cancelar',
+            style: 'cancel',
+          },
+        ]
+      );
+    } else {
+      // Si hay cuenta, pedir PIN
+      router.push('/pinVerification');
+    }
+  };
+
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={['#B8D4E0', '#FAD4C0']}
+      style={styles.container}
+    >
       {/* Logo y encabezado */}
       <View style={styles.header}>
-        <View style={styles.logoContainer}>
-          <View style={styles.wings}>
-            <Text style={styles.wingText}>✨</Text>
-          </View>
-          <View style={styles.halo}>
-            <View style={styles.haloRing} />
-          </View>
-          <View style={styles.earth}>
-            <View style={styles.earthInner} />
-          </View>
-        </View>
-        
-        <Text style={styles.title}>Ingeniowave</Text>
+        <Image source={require('../../assets/images/logo2.png')} style={styles.logo} />
         <Text style={styles.subtitle}>
           Donde el aprendizaje es una nueva aventura mágica
         </Text>
       </View>
 
       {/* Pregunta */}
-      <View style={styles.questionContainer}>
+      <View style={styles.QContainer}>
         <Text style={styles.question}>¿Quién está por explorar?</Text>
       </View>
 
       {/* Tarjetas de selección */}
       <View style={styles.cardsContainer}>
-        <TouchableOpacity style={styles.card} activeOpacity={0.8}>
+        <TouchableOpacity 
+          style={styles.card} 
+          activeOpacity={0.8}
+          onPress={handleParentClick}
+        >
           <View style={styles.iconCircle}>
             <Ionicons name="person" size={48} color="#6B4423" />
           </View>
           <Text style={styles.cardLabel}>Padres</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.card} activeOpacity={0.8}>
+        <TouchableOpacity 
+          style={styles.card} 
+          activeOpacity={0.8}
+          onPress={handleChildClick}
+        >
           <View style={styles.iconCircle}>
-            <Ionicons name="person" size={48} color="#6B4423" />
+            <Ionicons name="happy-outline" size={48} color="#6B4423" />
           </View>
           <Text style={styles.cardLabel}>Niña/o</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#C8E6F5',
     paddingTop: 80,
     paddingHorizontal: 20,
   },
+  logo: {
+    width: 220, 
+    height: 220,
+    marginTop: -20,
+    marginBottom: -40,
+    resizeMode: 'contain',
+  },
   header: {
     alignItems: 'center',
-    marginBottom: 60,
-  },
-  logoContainer: {
-    width: 120,
-    height: 120,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-    position: 'relative',
-  },
-  wings: {
-    position: 'absolute',
-    top: 20,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  wingText: {
-    fontSize: 60,
-    opacity: 0.8,
-  },
-  halo: {
-    position: 'absolute',
-    top: 10,
-    alignItems: 'center',
-  },
-  haloRing: {
-    width: 50,
-    height: 15,
-    borderRadius: 25,
-    backgroundColor: '#FFD700',
-    opacity: 0.7,
-  },
-  earth: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: '#87CEEB',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  earthInner: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#5FA3D0',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#4B0082',
-    marginBottom: 8,
+    marginBottom: 40,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#333',
+    fontWeight: 'bold',
     textAlign: 'center',
-    paddingHorizontal: 20,
+    marginTop: -10,
   },
-  questionContainer: {
+  QContainer: {
     alignItems: 'center',
     marginBottom: 40,
+    marginTop: 40,
   },
   question: {
     fontSize: 16,
     color: '#333',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   cardsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingHorizontal: 10,
+    marginHorizontal: -20,
   },
   card: {
-    width: 160,
+    width: 150,
     height: 160,
     backgroundColor: '#F5E6D3',
     borderRadius: 20,
