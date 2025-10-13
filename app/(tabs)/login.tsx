@@ -1,17 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function LoginScreen() {
@@ -30,13 +31,40 @@ export default function LoginScreen() {
 
     setIsLoading(true);
     
-    // Aquí irá tu lógica de autenticación
-    // Por ahora simularemos un login exitoso
-    setTimeout(() => {
+    try {
+      // Aquí irá tu lógica de autenticación real con el backend
+      // Por ahora simularemos un login exitoso
+      
+      // Simular delay de red
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Datos simulados del padre (esto vendrá de tu API)
+      const datosSimulados = {
+        id_pad: 1,
+        nombre_completo: 'Juan Pérez García',
+        correo_pad: email,
+        token: 'fake-jwt-token-12345', // Este será un token real de tu backend
+        tiene_ninos: true,
+      };
+      
+      // Guardar sesión del padre
+      await AsyncStorage.setItem('parentSession', JSON.stringify(datosSimulados));
+      await AsyncStorage.setItem('hasParentAccount', 'true');
+      
+      // Importante: También guardar que tiene niños registrados
+      await AsyncStorage.setItem('hasChildren', datosSimulados.tiene_ninos ? 'true' : 'false');
+      
+      console.log('Sesión guardada exitosamente');
+      
+      // Navegar al dashboard del padre
+      router.replace('/dashboardP');
+      
+    } catch (error) {
+      console.error('Error en login:', error);
+      Alert.alert('Error', 'No se pudo iniciar sesión. Intenta de nuevo.');
+    } finally {
       setIsLoading(false);
-      // Guardar sesión en AsyncStorage/SecureStore aquí
-      router.push('/parentDashboard');
-    }, 1500);
+    }
   };
 
   return (
@@ -101,7 +129,7 @@ export default function LoginScreen() {
 
             <TouchableOpacity 
               style={styles.forgotPassword}
-              onPress={() => router.push('/forgotPassword')}
+              onPress={() => router.push('/forgotPass')}
             >
               <Text style={styles.forgotPasswordText}>
                 ¿Olvidaste tu contraseña?
@@ -132,7 +160,7 @@ export default function LoginScreen() {
 
             <TouchableOpacity 
               style={styles.registerLink}
-              onPress={() => router.push('/createAccount')}
+              onPress={() => router.push('/registro')}
             >
               <Text style={styles.registerLinkText}>
                 ¿No tienes cuenta? <Text style={styles.registerLinkBold}>Regístrate aquí</Text>

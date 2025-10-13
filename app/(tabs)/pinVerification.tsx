@@ -1,21 +1,25 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    Alert,
-    Animated,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Animated,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function PINVerificationScreen() {
   const router = useRouter();
   const [pin, setPin] = useState(['', '', '', '']);
   const [attempts, setAttempts] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [hasAccount, setHasAccount] = useState(false);
+  
   const inputRefs = [
     useRef<TextInput>(null),
     useRef<TextInput>(null),
@@ -25,9 +29,41 @@ export default function PINVerificationScreen() {
   const shakeAnimation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Enfocar el primer input al cargar
-    inputRefs[0].current?.focus();
+    verificarCuentaExiste();
   }, []);
+
+  const verificarCuentaExiste = async () => {
+    try {
+      const hasParentAccount = await AsyncStorage.getItem('hasParentAccount');
+      const hasChildren = await AsyncStorage.getItem('hasChildren');
+      
+      console.log('Has parent account:', hasParentAccount);
+      console.log('Has children:', hasChildren);
+      
+      if (hasParentAccount === 'true' && hasChildren === 'true') {
+        setHasAccount(true);
+        // Enfocar el primer input después de verificar
+        setTimeout(() => {
+          inputRefs[0].current?.focus();
+        }, 100);
+      } else {
+        Alert.alert(
+          'Sin cuenta',
+          'Primero debes crear una cuenta de padre',
+          [
+            {
+              text: 'OK',
+              onPress: () => router.back(),
+            },
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Error verificando cuenta:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handlePinChange = (value: string, index: number) => {
     // Solo permitir números
@@ -55,34 +91,56 @@ export default function PINVerificationScreen() {
     }
   };
 
-  const verifyPin = (enteredPin: string) => {
-    // Aquí deberías verificar el PIN con el almacenado
-    const correctPin = '1234'; // Este valor debería venir de tu backend/storage
-
-    if (enteredPin === correctPin) {
-      // PIN correcto
-      router.push('/dashboardN');
-    } else {
-      // PIN incorrecto
-      setAttempts(attempts + 1);
-      shakeInputs();
+  const verifyPin = async (enteredPin: string) => {
+    try {
+      // Obtener el PIN guardado del niño
+      // En producción, esto vendría de tu backend
+      const savedPin = await AsyncStorage.getItem('childPin');
+      const correctPin = savedPin || '1234'; // PIN por defecto para testing
       
-      if (attempts + 1 >= 3) {
-        Alert.alert(
-          'Demasiados intentos',
-          'Has superado el número de intentos. Por favor, pide ayuda a un adulto.',
-          [
-            {
-              text: 'Volver',
-              onPress: () => router.back(),
-            },
-          ]
-        );
+      console.log('PIN ingresado:', enteredPin);
+      console.log('PIN correcto:', correctPin);
+
+      if (enteredPin === correctPin) {
+        // PIN correcto - Guardar sesión del niño
+        const datosNino = {
+          id_nino: 1, // Este vendría de tu backend
+          nombre_completo: 'María Pérez López',
+          avatar_emoji: '🦁',
+          loginTime: new Date().toISOString(),
+        };
+        
+        await AsyncStorage.setItem('childSession', JSON.stringify(datosNino));
+        
+        console.log('PIN correcto - Navegando a dashboard');
+        
+        // Navegar al dashboard del niño
+        router.replace('/dashboardN');
       } else {
-        Alert.alert('PIN incorrecto', 'Intenta de nuevo');
-        setPin(['', '', '', '']);
-        inputRefs[0].current?.focus();
+        // PIN incorrecto
+        setAttempts(attempts + 1);
+        shakeInputs();
+        
+        if (attempts + 1 >= 3) {
+          Alert.alert(
+            'Demasiados intentos',
+            'Has superado el número de intentos. Por favor, pide ayuda a un adulto.',
+            [
+              {
+                text: 'Volver',
+                onPress: () => router.back(),
+              },
+            ]
+          );
+        } else {
+          Alert.alert('PIN incorrecto', `Intenta de nuevo. Te quedan ${3 - (attempts + 1)} intentos`);
+          setPin(['', '', '', '']);
+          inputRefs[0].current?.focus();
+        }
       }
+    } catch (error) {
+      console.error('Error verificando PIN:', error);
+      Alert.alert('Error', 'No se pudo verificar el PIN');
     }
   };
 
@@ -94,6 +152,20 @@ export default function PINVerificationScreen() {
       Animated.timing(shakeAnimation, { toValue: 0, duration: 50, useNativeDriver: true }),
     ]).start();
   };
+
+  if (loading) {
+    return (
+      <LinearGradient colors={['#B8D4E0', '#FAD4C0']} style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Verificando...</Text>
+        </View>
+      </LinearGradient>
+    );
+  }
+
+  if (!hasAccount) {
+    return null; // Ya mostramos el alert
+  }
 
   return (
     <LinearGradient colors={['#B8D4E0', '#FAD4C0']} style={styles.container}>
@@ -247,6 +319,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 18,
+    color: '#4B0082',
+    fontWeight: '600',
+  },
   backButton: {
     position: 'absolute',
     top: 60,
@@ -332,22 +414,22 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   numberPadRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 20,
-    marginBottom: 20,
-  },
-  numberButton: {
-    width: 70,
-    height: 70,
-    backgroundColor: '#F5E6D3',
-    borderRadius: 35,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  numberButtonText: {
-    fontSize: 28,
-    fontWeight: '600',
-    color: '#333',
-  },
+flexDirection: 'row',
+justifyContent: 'center',
+gap: 20,
+marginBottom: 20,
+},
+numberButton: {
+width: 70,
+height: 70,
+backgroundColor: '#F5E6D3',
+borderRadius: 35,
+alignItems: 'center',
+justifyContent: 'center',
+},
+numberButtonText: {
+fontSize: 28,
+fontWeight: '600',
+color: '#333',
+},
 });
