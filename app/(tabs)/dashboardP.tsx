@@ -2,22 +2,122 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+
+interface ChildData {
+  id_nino: number;
+  nombre_completo: string;
+  nom_nino: string;
+  edad_nino: number;
+  avatar_emoji: string;
+}
 
 export default function ParentDashboardScreen() {
   const router = useRouter();
+  const [childData, setChildData] = useState<ChildData | null>(null);
+  const [parentName, setParentName] = useState('');
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      // Cargar datos del padre
+      const parentSession = await AsyncStorage.getItem('parentSession');
+      if (parentSession) {
+        const parentData = JSON.parse(parentSession);
+        setParentName(parentData.nom_pad || 'Papá/Mamá');
+      }
+
+      // Cargar datos del niño
+      const savedChildData = await AsyncStorage.getItem('childData');
+      if (savedChildData) {
+        const child = JSON.parse(savedChildData);
+        setChildData(child);
+        console.log('Datos del niño cargados:', child);
+      }
+    } catch (error) {
+      console.error('Error cargando datos:', error);
+    }
+  };
+
+  const handleAccessChildProfile = () => {
+    Alert.alert(
+      'Acceder al perfil del niño',
+      '¿Cómo deseas continuar?',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Con mi sesión',
+          onPress: () => {
+            // Crear una sesión temporal del niño basada en los datos guardados
+            if (childData) {
+              const tempChildSession = {
+                id_nino: childData.id_nino,
+                nombre_completo: childData.nombre_completo,
+                avatar_emoji: childData.avatar_emoji,
+                loginTime: new Date().toISOString(),
+                parentAccess: true, // Indicador de que entró con sesión de padre
+              };
+              
+              AsyncStorage.setItem('childSession', JSON.stringify(tempChildSession))
+                .then(() => {
+                  console.log('Sesión temporal del niño creada');
+                  router.push('/dashboardN');
+                })
+                .catch(error => {
+                  console.error('Error creando sesión temporal:', error);
+                  Alert.alert('Error', 'No se pudo acceder al perfil del niño');
+                });
+            } else {
+              Alert.alert('Error', 'No se encontraron datos del niño');
+            }
+          },
+        },
+        {
+          text: 'Con PIN del niño',
+          onPress: () => router.push('/pinVerification'),
+        },
+      ]
+    );
+  };
 
   const handleLogout = async () => {
-    
-    await AsyncStorage.removeItem('parentSession');
-    router.replace('/');
+    Alert.alert(
+      'Cerrar sesión',
+      '¿Estás seguro de que deseas cerrar sesión?',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Cerrar sesión',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await AsyncStorage.removeItem('parentSession');
+              console.log('Sesión del padre cerrada');
+              router.replace('/');
+            } catch (error) {
+              console.error('Error cerrando sesión:', error);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -26,13 +126,13 @@ export default function ParentDashboardScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>¡Hola, Papá/Mamá!</Text>
+            <Text style={styles.greeting}>¡Hola, {parentName}!</Text>
             <Text style={styles.subtitle}>Bienvenido de vuelta</Text>
           </View>
           <TouchableOpacity 
             style={styles.settingsButton}
             onPress={() => {
-              // router.push('/settings');
+              Alert.alert('Configuración', 'Próximamente disponible');
             }}
           >
             <Ionicons name="settings-outline" size={28} color="#4B0082" />
@@ -44,17 +144,37 @@ export default function ParentDashboardScreen() {
           <View style={styles.childHeader}>
             <View style={styles.childInfo}>
               <View style={styles.avatarContainer}>
-                <Text style={styles.avatarEmoji}>🦁</Text>
+                <Text style={styles.avatarEmoji}>
+                  {childData?.avatar_emoji || '🦁'}
+                </Text>
               </View>
               <View>
-                <Text style={styles.childName}>Nombre del Niño</Text>
-                <Text style={styles.childAge}>8 años • 3er grado</Text>
+                <Text style={styles.childName}>
+                  {childData?.nombre_completo || 'Nombre del Niño'}
+                </Text>
+                <Text style={styles.childAge}>
+                  {childData?.edad_nino ? `${childData.edad_nino} años` : '8 años'}
+                </Text>
               </View>
             </View>
-            <TouchableOpacity style={styles.editButton}>
+            <TouchableOpacity 
+              style={styles.editButton}
+              onPress={() => Alert.alert('Editar', 'Próximamente disponible')}
+            >
               <Ionicons name="pencil" size={20} color="#4B0082" />
             </TouchableOpacity>
           </View>
+
+          {/* Botón de acceso al perfil del niño */}
+          <TouchableOpacity 
+            style={styles.accessChildButton}
+            onPress={handleAccessChildProfile}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="person-outline" size={20} color="#FFF" />
+            <Text style={styles.accessChildButtonText}>Ver perfil del niño</Text>
+            <Ionicons name="arrow-forward" size={20} color="#FFF" />
+          </TouchableOpacity>
 
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
@@ -88,7 +208,7 @@ export default function ParentDashboardScreen() {
           
           <View style={styles.progressCard}>
             <View style={styles.progressRow}>
-              <Text style={styles.progressLabel}>Matemáticas</Text>
+              <Text style={styles.progressLabel}>Cuentos</Text>
               <Text style={styles.progressPercentage}>85%</Text>
             </View>
             <View style={styles.progressBar}>
@@ -96,7 +216,7 @@ export default function ParentDashboardScreen() {
             </View>
 
             <View style={styles.progressRow}>
-              <Text style={styles.progressLabel}>Lectura</Text>
+              <Text style={styles.progressLabel}>Juegos</Text>
               <Text style={styles.progressPercentage}>92%</Text>
             </View>
             <View style={styles.progressBar}>
@@ -104,7 +224,7 @@ export default function ParentDashboardScreen() {
             </View>
 
             <View style={styles.progressRow}>
-              <Text style={styles.progressLabel}>Ciencias</Text>
+              <Text style={styles.progressLabel}>Canciones</Text>
               <Text style={styles.progressPercentage}>78%</Text>
             </View>
             <View style={styles.progressBar}>
@@ -118,28 +238,40 @@ export default function ParentDashboardScreen() {
           <Text style={styles.sectionTitle}>Acciones Rápidas</Text>
           
           <View style={styles.actionsGrid}>
-            <TouchableOpacity style={styles.actionCard}>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => Alert.alert('Actividades', 'Próximamente disponible')}
+            >
               <View style={styles.actionIcon}>
                 <Ionicons name="book-outline" size={32} color="#4B0082" />
               </View>
               <Text style={styles.actionText}>Actividades</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionCard}>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => Alert.alert('Reportes', 'Próximamente disponible')}
+            >
               <View style={styles.actionIcon}>
                 <Ionicons name="stats-chart-outline" size={32} color="#4B0082" />
               </View>
               <Text style={styles.actionText}>Reportes</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionCard}>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => Alert.alert('Calendario', 'Próximamente disponible')}
+            >
               <View style={styles.actionIcon}>
                 <Ionicons name="calendar-outline" size={32} color="#4B0082" />
               </View>
               <Text style={styles.actionText}>Calendario</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionCard}>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => Alert.alert('Comunidad', 'Próximamente disponible')}
+            >
               <View style={styles.actionIcon}>
                 <Ionicons name="people-outline" size={32} color="#4B0082" />
               </View>
@@ -159,10 +291,10 @@ export default function ParentDashboardScreen() {
 
           <View style={styles.activityCard}>
             <View style={styles.activityIconContainer}>
-              <Ionicons name="calculator" size={24} color="#4ECDC4" />
+              <Ionicons name="book" size={24} color="#4ECDC4" />
             </View>
             <View style={styles.activityInfo}>
-              <Text style={styles.activityTitle}>Suma de fracciones</Text>
+              <Text style={styles.activityTitle}>Cuento: El león valiente</Text>
               <Text style={styles.activityTime}>Hace 2 horas • 15 min</Text>
             </View>
             <View style={styles.activityBadge}>
@@ -172,10 +304,10 @@ export default function ParentDashboardScreen() {
 
           <View style={styles.activityCard}>
             <View style={styles.activityIconContainer}>
-              <Ionicons name="book" size={24} color="#95E1D3" />
+              <Ionicons name="game-controller" size={24} color="#95E1D3" />
             </View>
             <View style={styles.activityInfo}>
-              <Text style={styles.activityTitle}>Comprensión lectora</Text>
+              <Text style={styles.activityTitle}>Juego: Amistad</Text>
               <Text style={styles.activityTime}>Ayer • 20 min</Text>
             </View>
             <View style={styles.activityBadge}>
@@ -185,10 +317,10 @@ export default function ParentDashboardScreen() {
 
           <View style={styles.activityCard}>
             <View style={styles.activityIconContainer}>
-              <Ionicons name="flask" size={24} color="#FFD93D" />
+              <Ionicons name="musical-notes" size={24} color="#FFD93D" />
             </View>
             <View style={styles.activityInfo}>
-              <Text style={styles.activityTitle}>Estados de la materia</Text>
+              <Text style={styles.activityTitle}>Canción: Ser honesto</Text>
               <Text style={styles.activityTime}>Hace 2 días • 18 min</Text>
             </View>
             <View style={styles.activityBadge}>
@@ -253,7 +385,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   childInfo: {
     flexDirection: 'row',
@@ -283,6 +415,26 @@ const styles = StyleSheet.create({
   },
   editButton: {
     padding: 8,
+  },
+  accessChildButton: {
+    backgroundColor: '#4B0082',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 10,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  accessChildButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   statsContainer: {
     flexDirection: 'row',

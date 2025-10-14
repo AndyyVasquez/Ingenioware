@@ -18,7 +18,7 @@ export default function PINVerificationScreen() {
   const [pin, setPin] = useState(['', '', '', '']);
   const [attempts, setAttempts] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [hasAccount, setHasAccount] = useState(false);
+  const [canAccess, setCanAccess] = useState(false);
   
   const inputRefs = [
     useRef<TextInput>(null),
@@ -29,27 +29,47 @@ export default function PINVerificationScreen() {
   const shakeAnimation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    verificarCuentaExiste();
+    verificarAcceso();
   }, []);
 
-  const verificarCuentaExiste = async () => {
+  const verificarAcceso = async () => {
     try {
+      // Verificar que exista cuenta de padre
       const hasParentAccount = await AsyncStorage.getItem('hasParentAccount');
-      const hasChildren = await AsyncStorage.getItem('hasChildren');
+      
+      // Verificar que haya sesión activa de padre
+      const parentSession = await AsyncStorage.getItem('parentSession');
+      
+      // Verificar que existan datos del niño
+      const childData = await AsyncStorage.getItem('childData');
       
       console.log('Has parent account:', hasParentAccount);
-      console.log('Has children:', hasChildren);
+      console.log('Parent session:', parentSession ? 'Activa' : 'No activa');
+      console.log('Child data:', childData ? 'Existe' : 'No existe');
       
-      if (hasParentAccount === 'true' && hasChildren === 'true') {
-        setHasAccount(true);
-        // Enfocar el primer input después de verificar
-        setTimeout(() => {
-          inputRefs[0].current?.focus();
-        }, 100);
-      } else {
+      if (!hasParentAccount || !parentSession) {
         Alert.alert(
-          'Sin cuenta',
-          'Primero debes crear una cuenta de padre',
+          'Acceso no disponible',
+          'Necesitas iniciar sesión como padre primero.',
+          [
+            {
+              text: 'Iniciar sesión',
+              onPress: () => router.replace('/login'),
+            },
+            {
+              text: 'Volver',
+              onPress: () => router.back(),
+              style: 'cancel',
+            },
+          ]
+        );
+        return;
+      }
+
+      if (!childData) {
+        Alert.alert(
+          'Sin perfil de niño',
+          'Aún no se ha registrado un perfil de niño.',
           [
             {
               text: 'OK',
@@ -57,9 +77,18 @@ export default function PINVerificationScreen() {
             },
           ]
         );
+        return;
       }
+
+      setCanAccess(true);
+      // Enfocar el primer input
+      setTimeout(() => {
+        inputRefs[0].current?.focus();
+      }, 100);
+      
     } catch (error) {
-      console.error('Error verificando cuenta:', error);
+      console.error('Error verificando acceso:', error);
+      Alert.alert('Error', 'No se pudo verificar el acceso');
     } finally {
       setLoading(false);
     }
@@ -93,29 +122,41 @@ export default function PINVerificationScreen() {
 
   const verifyPin = async (enteredPin: string) => {
     try {
-      // Obtener el PIN guardado del niño
-      // En producción, esto vendría de tu backend
+      // Obtener el PIN guardado
       const savedPin = await AsyncStorage.getItem('childPin');
-      const correctPin = savedPin || '1234'; // PIN por defecto para testing
       
       console.log('PIN ingresado:', enteredPin);
-      console.log('PIN correcto:', correctPin);
+      console.log('PIN guardado:', savedPin);
 
-      if (enteredPin === correctPin) {
-        // PIN correcto - Guardar sesión del niño
-        const datosNino = {
-          id_nino: 1, // Este vendría de tu backend
-          nombre_completo: 'María Pérez López',
-          avatar_emoji: '🦁',
-          loginTime: new Date().toISOString(),
-        };
+      if (!savedPin) {
+        Alert.alert('Error', 'No se encontró el PIN configurado');
+        return;
+      }
+
+      if (enteredPin === savedPin) {
+        // PIN correcto - Crear sesión del niño
+        const childDataStr = await AsyncStorage.getItem('childData');
         
-        await AsyncStorage.setItem('childSession', JSON.stringify(datosNino));
-        
-        console.log('PIN correcto - Navegando a dashboard');
-        
-        // Navegar al dashboard del niño
-        router.replace('/dashboardN');
+        if (childDataStr) {
+          const childData = JSON.parse(childDataStr);
+          
+          const childSession = {
+            id_nino: childData.id_nino,
+            nombre_completo: childData.nombre_completo,
+            avatar_emoji: childData.avatar_emoji,
+            loginTime: new Date().toISOString(),
+            authenticatedWithPin: true,
+          };
+          
+          await AsyncStorage.setItem('childSession', JSON.stringify(childSession));
+          
+          console.log('✅ PIN correcto - Sesión del niño creada');
+          
+          // Navegar al dashboard del niño
+          router.replace('/dashboardN');
+        } else {
+          Alert.alert('Error', 'No se encontraron datos del niño');
+        }
       } else {
         // PIN incorrecto
         setAttempts(attempts + 1);
@@ -124,7 +165,7 @@ export default function PINVerificationScreen() {
         if (attempts + 1 >= 3) {
           Alert.alert(
             'Demasiados intentos',
-            'Has superado el número de intentos. Por favor, pide ayuda a un adulto.',
+            'Has superado el número de intentos permitidos.',
             [
               {
                 text: 'Volver',
@@ -133,7 +174,10 @@ export default function PINVerificationScreen() {
             ]
           );
         } else {
-          Alert.alert('PIN incorrecto', `Intenta de nuevo. Te quedan ${3 - (attempts + 1)} intentos`);
+          Alert.alert(
+            'PIN incorrecto', 
+            `Te quedan ${3 - (attempts + 1)} intentos`
+          );
           setPin(['', '', '', '']);
           inputRefs[0].current?.focus();
         }
@@ -157,14 +201,14 @@ export default function PINVerificationScreen() {
     return (
       <LinearGradient colors={['#B8D4E0', '#FAD4C0']} style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Verificando...</Text>
+          <Text style={styles.loadingText}>Verificando acceso...</Text>
         </View>
       </LinearGradient>
     );
   }
 
-  if (!hasAccount) {
-    return null; // Ya mostramos el alert
+  if (!canAccess) {
+    return null;
   }
 
   return (
@@ -414,22 +458,22 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   numberPadRow: {
-flexDirection: 'row',
-justifyContent: 'center',
-gap: 20,
-marginBottom: 20,
-},
-numberButton: {
-width: 70,
-height: 70,
-backgroundColor: '#F5E6D3',
-borderRadius: 35,
-alignItems: 'center',
-justifyContent: 'center',
-},
-numberButtonText: {
-fontSize: 28,
-fontWeight: '600',
-color: '#333',
-},
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 20,
+    marginBottom: 20,
+  },
+  numberButton: {
+    width: 70,
+    height: 70,
+    backgroundColor: '#F5E6D3',
+    borderRadius: 35,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  numberButtonText: {
+    fontSize: 28,
+    fontWeight: '600',
+    color: '#333',
+  },
 });

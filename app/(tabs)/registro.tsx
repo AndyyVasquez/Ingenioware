@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -29,6 +29,14 @@ export default function RegistroPadres() {
   // Estado del PIN
   const [pin, setPin] = useState(['', '', '', '']);
   
+  // Referencias para los inputs del PIN
+  const pinRefs = [
+    useRef<TextInput>(null),
+    useRef<TextInput>(null),
+    useRef<TextInput>(null),
+    useRef<TextInput>(null),
+  ];
+  
   // Estados del niño
   const [nomN, setnomN] = useState('');
   const [apN, setapN] = useState('');
@@ -47,6 +55,18 @@ export default function RegistroPadres() {
     const newPin = [...pin];
     newPin[index] = value;
     setPin(newPin);
+
+    // Auto-focus al siguiente input si se ingresó un valor
+    if (value && index < 3) {
+      pinRefs[index + 1].current?.focus();
+    }
+  };
+
+  const handlePinKeyPress = (e: any, index: number) => {
+    // Si presiona backspace y el campo está vacío, ir al anterior
+    if (e.nativeEvent.key === 'Backspace' && !pin[index] && index > 0) {
+      pinRefs[index - 1].current?.focus();
+    }
   };
 
   const validarFormulario = () => {
@@ -267,12 +287,18 @@ export default function RegistroPadres() {
               {pin.map((digit, index) => (
                 <TextInput
                   key={index}
-                  style={styles.pinInput}
+                  ref={pinRefs[index]}
+                  style={[
+                    styles.pinInput,
+                    digit && styles.pinInputFilled,
+                  ]}
                   maxLength={1}
                   keyboardType="number-pad"
                   value={digit}
                   onChangeText={(value) => handlePinChange(value, index)}
+                  onKeyPress={(e) => handlePinKeyPress(e, index)}
                   secureTextEntry
+                  selectTextOnFocus
                 />
               ))}
             </View>
@@ -440,6 +466,12 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '600',
     color: '#333',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  pinInputFilled: {
+    borderColor: '#4B0082',
+    backgroundColor: '#E8D5FF',
   },
   dropdown: {
     backgroundColor: '#F5E6D3',
