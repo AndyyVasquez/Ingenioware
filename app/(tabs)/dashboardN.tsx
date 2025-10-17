@@ -25,6 +25,7 @@ interface NinoData {
   id_nino: number;
   nombre_completo: string;
   avatar_emoji: string;
+  apodo?: string;
 }
 
 export default function ChildDashboardScreen() {
@@ -83,6 +84,7 @@ export default function ChildDashboardScreen() {
   const verificarSesion = async () => {
     try {
       const childSession = await AsyncStorage.getItem('childSession');
+      const childData = await AsyncStorage.getItem('childData');
       
       console.log('Child session:', childSession);
       
@@ -100,7 +102,12 @@ export default function ChildDashboardScreen() {
         return;
       }
 
-      const datos = JSON.parse(childSession);
+      const session = JSON.parse(childSession);
+      const data = childData ? JSON.parse(childData) : {}; 
+          const datos = {
+      ...session,
+      apodo: data.apodo || session.apodo, 
+    };
       setNinoData(datos);
       
     } catch (error) {
@@ -135,16 +142,30 @@ export default function ChildDashboardScreen() {
     );
   };
 
-  const handleCategoriaPress = (categoria: Categoria) => {
-    console.log('Categoría seleccionada:', categoria.nombre_categoria);
-    
-    // Por ahora mostrar un alert, luego navegarás a las pantallas reales
-    Alert.alert(
-      categoria.nombre_categoria,
-      `Próximamente: ${categoria.descripcion}`,
-      [{ text: 'OK' }]
-    );
-  };
+ const handleCategoriaPress = (categoria: Categoria) => {
+  console.log('Categoría seleccionada:', categoria.nombre_categoria);
+  
+  switch(categoria.id_categoria) {
+    case 1: // Cuentos
+      router.push('/cuentos');
+      break;
+    case 4: // Mis logros
+      router.push('/recompensas');
+      break;
+    case 5:
+      router.push('/buenosMomentos');
+      break;  
+    case 6: // Mi perfil
+      router.push('/perfilN');  
+      break;
+    default:
+      Alert.alert(
+        categoria.nombre_categoria,
+        `Próximamente: ${categoria.descripcion}`,
+        [{ text: 'OK' }]
+      );
+  }
+};
 
   const getIconName = (iconName: string): any => {
     const iconMap: { [key: string]: any } = {
@@ -186,10 +207,11 @@ export default function ChildDashboardScreen() {
     );
   }
 
-  const nombreMostrar = ninoData.nombre_completo.split(' ')[0]; // Primer nombre
+  const nombreMostrar = ninoData.apodo || ninoData.nombre_completo.split(' ')[0];
 
   return (
     <LinearGradient colors={['#B8D4E0', '#FAD4C0']} style={styles.container}>
+
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header con saludo */}
         <View style={styles.header}>
@@ -232,6 +254,14 @@ export default function ChildDashboardScreen() {
         </View>
 
         <View style={styles.bottomSpacer} />
+        
+<TouchableOpacity
+  style={styles.floatingButton}
+  onPress={() => router.push('/bancoEstrellas')}
+>
+  <Text style={styles.floatingButtonEmoji}>🪙</Text>
+  <Text style={styles.floatingButtonText}>Banco</Text>
+</TouchableOpacity>
       </ScrollView>
     </LinearGradient>
   );
@@ -364,4 +394,29 @@ const styles = StyleSheet.create({
   bottomSpacer: {
     height: 40,
   },
+  floatingButton: {
+  position: 'absolute',
+  bottom: -40,
+  right: 20,
+  backgroundColor: '#FFA500',
+  borderRadius: 30,
+  paddingVertical: 12,
+  paddingHorizontal: 20,
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 8,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.3,
+  shadowRadius: 8,
+  elevation: 8,
+},
+floatingButtonEmoji: {
+  fontSize: 24,
+},
+floatingButtonText: {
+  color: '#FFF',
+  fontSize: 16,
+  fontWeight: 'bold',
+},
 });
