@@ -19,7 +19,7 @@ export default function AuthChoiceScreen() {
       <View style={styles.content}>
         <View style={styles.header}>
           <Image 
-            source={require('../../assets/images/logo2.png')} 
+            source={require('../assets/images/logo.png')} 
             style={styles.logo} 
           />
           <Text style={styles.title}>¡Bienvenido de nuevo!</Text>

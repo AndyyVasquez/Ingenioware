@@ -36,7 +36,7 @@ export default function WelcomeScreen() {
   const handleParentClick = () => {
     if (isParentLoggedIn) {
       // Si ya hay sesión activa, ir directo al dashboard del padre
-      router.push('/dashboardP');
+      router.push('./parent/(tabs)/');
     } else {
       // Si no hay sesión, mostrar opciones
       Alert.alert(

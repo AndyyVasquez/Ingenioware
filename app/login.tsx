@@ -57,7 +57,7 @@ export default function LoginScreen() {
       console.log('Sesión guardada exitosamente');
       
       // Navegar al dashboard del padre
-      router.replace('/dashboardP');
+     router.replace('./(parent)/(tabs)/');
       
     } catch (error) {
       console.error('Error en login:', error);
