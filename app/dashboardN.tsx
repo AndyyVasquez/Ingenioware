@@ -24,6 +24,10 @@ interface Categoria {
   ruta?: string;
 }
 
+interface BuenMomento {
+  id: string;
+  visto: boolean;
+}
 interface NinoData {
   id_nino: number;
   nombre_completo: string;
@@ -43,6 +47,7 @@ export default function ChildDashboardScreen() {
     ropa: null,
     fondo: null,
   });
+  const [nuevosMomentos, setNuevosMomentos] = useState(0);
   const [categorias] = useState<Categoria[]>([
     {
       id_categoria: 1,
@@ -98,6 +103,7 @@ useFocusEffect(
       verificarSesion();
       cargarEntradasDiario();
       cargarAvatar(); 
+      cargarNuevosMomentos();
     }, [])
   );
 
@@ -160,6 +166,17 @@ useFocusEffect(
       }
     } catch (error) {
       console.error('Error cargando entradas:', error);
+    }
+  };
+
+   const cargarNuevosMomentos = async () => {
+    try {
+      const momentosStr = await AsyncStorage.getItem('buenosMomentos');
+      const momentos: BuenMomento[] = momentosStr ? JSON.parse(momentosStr) : [];
+      const noVistos = momentos.filter(m => !m.visto).length;
+      setNuevosMomentos(noVistos);
+    } catch (error) {
+      console.error('Error cargando nuevos momentos:', error);
     }
   };
 
@@ -337,6 +354,11 @@ useFocusEffect(
               activeOpacity={0.8}
               onPress={() => handleCategoriaPress(categoria)}
             >
+              {categoria.nombre_categoria === 'Buenos momentos' && nuevosMomentos > 0 && (
+                <View style={styles.badgeContainer}>
+                  <Text style={styles.badgeText}>{nuevosMomentos}</Text>
+                </View>
+              )}
               <View style={[styles.categoryIconContainer, { backgroundColor: categoria.color }]}>
                 <Ionicons
                   name={getIconName(categoria.nombre_icono)}
@@ -454,6 +476,25 @@ const styles = StyleSheet.create({
     color: '#333',
     marginTop: 16,
     textAlign: 'center',
+  },
+  badgeContainer: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: '#FF6B6B',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    borderWidth: 2,
+    borderColor: '#FFF',
+  },
+  badgeText: {
+    color: '#FFF',
+    fontWeight: 'bold',
+    fontSize: 12,
   },
   retryButton: {
     marginTop: 24,

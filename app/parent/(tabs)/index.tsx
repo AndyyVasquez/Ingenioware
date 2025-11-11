@@ -198,12 +198,12 @@ const handleLogout = async () => {
           <View style={styles.actionsGrid}>
             <TouchableOpacity 
               style={styles.actionCard}
-              onPress={() => router.push('./progreso')}
+              onPress={() => router.push('./crearMomento')}
             >
               <View style={styles.actionIcon}>
-                <Ionicons name="book-outline" size={32} color="#4B0082" />
+                <Ionicons name="sparkles-outline" size={32} color="#4B0082" />
               </View>
-              <Text style={styles.actionText}>Actividades</Text>
+              <Text style={styles.actionText}>Enviar mensaje</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
