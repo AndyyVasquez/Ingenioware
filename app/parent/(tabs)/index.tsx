@@ -64,10 +64,10 @@ export default function ParentDashboardScreen() {
     );
   };
   
-  const handleLogout = async () => {
+const handleLogout = async () => {
     Alert.alert(
       'Cerrar sesión',
-      '¿Estás seguro de que deseas cerrar sesión?',
+      '¿Estás seguro de que deseas cerrar sesión? Esto cerrará todas las sesiones.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -75,8 +75,15 @@ export default function ParentDashboardScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+
               await AsyncStorage.removeItem('parentSession');
-              router.replace('/'); // Asumiendo que esta es la ruta de login
+              await AsyncStorage.removeItem('childSession');
+              await AsyncStorage.removeItem('hasParentAccount'); 
+              await AsyncStorage.removeItem('hasChildren');
+
+
+              console.log('Sesiones de padre e hijo cerradas.');
+              router.replace('/'); 
             } catch (error) {
               console.error('Error cerrando sesión:', error);
             }
@@ -85,7 +92,6 @@ export default function ParentDashboardScreen() {
       ]
     );
   };
-
   if (isLoading) {
     return (
       <LinearGradient colors={['#B8D4E0', '#FAD4C0']} style={styles.container}>
@@ -174,7 +180,7 @@ export default function ParentDashboardScreen() {
             </View>
           </View>
 
-          <TouchableOpacity 
+          {/* <TouchableOpacity 
             style={styles.accessChildButton}
             onPress={handleAccessChildProfile}
             activeOpacity={0.8}
@@ -182,7 +188,7 @@ export default function ParentDashboardScreen() {
             <Ionicons name="person-outline" size={20} color="#FFF" />
             <Text style={styles.accessChildButtonText}>Ver perfil del niño</Text>
             <Ionicons name="arrow-forward" size={20} color="#FFF" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
 
         {/* Acciones Rápidas */}

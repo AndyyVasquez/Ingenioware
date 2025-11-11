@@ -1,124 +1,178 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
 import AnimatedStar from './AnimatedStar';
 
-export default function WelcomeScreen() {
+// Interface para unificar los perfiles
+interface Profile {
+  id: string;
+  type: 'parent' | 'child';
+  name: string;
+  avatar: string; // Puede ser un emoji '🦁' o un nombre de icono 'person'
+}
+
+export default function ProfileSelectorScreen() {
   const router = useRouter();
-  const [isParentLoggedIn, setIsParentLoggedIn] = useState(false);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [hasParentAccount, setHasParentAccount] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+   useFocusEffect(
+    useCallback(() => {
+      console.log('Pantalla de perfiles enfocada, cargando datos...');
+      loadProfiles();
+    }, [])
+  );
 
-  useEffect(() => {
-    checkSession();
-  }, []);
 
-  const checkSession = async () => {
+  const loadProfiles = async () => {
+    setIsLoading(true);
     try {
-      const parentSession = await AsyncStorage.getItem('parentSession');
-      const hasAccount = await AsyncStorage.getItem('hasParentAccount');
+      const loadedProfiles: Profile[] = [];
+      const [parentSessionStr, childDataStr, hasAccount] = await Promise.all([
+        AsyncStorage.getItem('parentSession'),
+        AsyncStorage.getItem('childData'),
+        AsyncStorage.getItem('hasParentAccount')
+      ]);
+
+      console.log('--- Cargando Perfiles ---');
+      console.log('hasParentAccount:', hasAccount);
+      console.log('parentSession:', parentSessionStr ? 'SI' : 'NO');
+      console.log('childData:', childDataStr ? 'SI' : 'NO');
       
-      console.log('Parent session:', parentSession);
-      console.log('Has account:', hasAccount);
+      const isParentAccountActive = hasAccount === 'true';
+      setHasParentAccount(hasAccount === 'true');
+
+      // 1. Cargar perfil del Padre
+      if (parentSessionStr) {
+        const parentData = JSON.parse(parentSessionStr);
+        loadedProfiles.push({
+          id: `parent_${parentData.id_pad || 1}`, // Usamos un ID único
+          type: 'parent',
+          name: parentData.nom_pad || 'Padres',
+          avatar: 'person', // Usaremos un icono para el padre
+        });
+      }
+
+      // 2. Cargar perfil del Niño
+      // (Esta lógica se puede expandir para cargar MÚLTIPLES niños)
+      if (isParentAccountActive && childDataStr) {
+        const childData = JSON.parse(childDataStr);
+        loadedProfiles.push({
+          id: `child_${childData.id_nino || 1}`, // ID único
+          type: 'child',
+          name: childData.apodo || childData.nombre_completo?.split(' ')[0] || 'Niño/a',
+          avatar: childData.avatar_emoji || '🦁', // Usamos el emoji
+        });
+      }
       
-      setIsParentLoggedIn(parentSession !== null);
-      setHasParentAccount(hasAccount !== null);
+      setProfiles(loadedProfiles);
     } catch (error) {
-      console.error('Error checking session:', error);
+      console.error('Error cargando perfiles:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleParentClick = () => {
-    if (isParentLoggedIn) {
-      // Si ya hay sesión activa, ir directo al dashboard del padre
-      router.push('./parent/(tabs)/');
+  const handleProfileClick = (profile: Profile) => {
+    // Navegamos a la pantalla de PIN, pasando el perfil que se tocó
+    // pinVerification ahora debe manejar esta lógica
+    router.push(
+      `/pinVerification?profileId=${profile.id}&profileType=${profile.type}&name=${profile.name}`
+    );
+  };
+
+  const handleAddProfile = () => {
+    // Si ya hay una cuenta de padre, es para añadir un niño
+    // Si no, es para crear la cuenta de padre
+    if (hasParentAccount) {
+      // Idealmente, esto iría a una pantalla de "Añadir Niño"
+      // Por ahora lo mandamos a la configuración de perfil
+      router.push('/configPerfilN'); 
     } else {
-      // Si no hay sesión, mostrar opciones
-      Alert.alert(
-        'Acceso para Padres',
-        '¿Qué deseas hacer?',
-        [
-          {
-            text: 'Cancelar',
-            style: 'cancel',
-          },
-          {
-            text: 'Crear cuenta',
-            onPress: () => router.push('/registro'),
-          },
-          {
-            text: 'Iniciar sesión',
-            onPress: () => router.push('/login'),
-          },
-        ]
-      );
+      router.push('/registro');
     }
   };
 
-  const handleChildClick = () => {
-    if (!hasParentAccount) {
-      // Si no hay cuenta de padre creada
-      Alert.alert(
-        'Cuenta requerida',
-        'Primero un adulto debe crear una cuenta para poder usar la app.',
-        [
-          {
-            text: 'Crear cuenta',
-            onPress: () => router.push('/registro'),
+  const handleLogout = async () => {
+    Alert.alert(
+      'Cerrar Sesión (Prueba)',
+      '¿Limpiar la sesión del padre para forzar el login?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Sí, limpiar',
+          style: 'destructive',
+          onPress: async () => {
+            await AsyncStorage.removeItem('parentSession');
+            await AsyncStorage.removeItem('parentPin');
+            await AsyncStorage.removeItem('hasParentAccount');
+            await AsyncStorage.removeItem('hasChildren');
+            console.log('¡Sesión limpiada! Reinicia la app o recarga.');
           },
-          {
-            text: 'Cancelar',
-            style: 'cancel',
-          },
-        ]
-      );
-    } else {
-      // Si hay cuenta de padre, verificar si hay sesión activa
-      if (isParentLoggedIn) {
-        // Si el padre está logueado, ir directo a verificación de PIN
-        router.push('/pinVerification');
-      } else {
-        // Si no hay sesión del padre, pedir que inicie sesión primero
-        Alert.alert(
-          'Inicio de sesión requerido',
-          'Para acceder al perfil del niño, primero necesitas iniciar sesión como padre.',
-          [
-            {
-              text: 'Cancelar',
-              style: 'cancel',
-            },
-            {
-              text: 'Iniciar sesión',
-              onPress: () => router.push('/login'),
-            },
-          ]
-        );
-      }
-    }
+        },
+      ]
+    );
   };
-
   if (isLoading) {
     return (
-      <LinearGradient colors={['#B8D4E0', '#FAD4C0']} style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Cargando...</Text>
-        </View>
+      <LinearGradient colors={['#B8D4E0', '#FAD4C0']} style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4B0082" />
+        <Text style={styles.loadingText}>Cargando...</Text>
       </LinearGradient>
     );
   }
+
+const handleNukeStorage = () => {
+    Alert.alert(
+      '¡Limpieza Total Definitiva!',
+      '¿Borrar absolutamente TODOS los datos de la app (padres, niños, pines, todo)?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Sí, Borrar Todo',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Esta es la "bomba atómica". Borra todas las claves.
+              await AsyncStorage.clear();
+              
+              console.log('¡Almacenamiento 100% limpio!');
+              
+              // Volvemos a cargar los perfiles (ahora estará vacío)
+              // y reseteamos los estados.
+              setProfiles([]); 
+              setHasParentAccount(false);
+              // setIsParentLoggedIn(false); 
+              loadProfiles();
+              Alert.alert('¡Listo!', 'Base de datos limpia. Ya puedes registrarte.');
+
+            } catch (error) {
+              console.error('Error limpiando storage:', error);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <LinearGradient colors={['#B8D4E0', '#FAD4C0']} style={styles.container}>
       {/* Logo y encabezado */}
       <View style={styles.header}>
+       <TouchableOpacity onPress={handleNukeStorage}>
          <AnimatedStar />
+         </TouchableOpacity>
         <Text style={{fontSize: 28, fontWeight: '700', color: '#4B0082', marginBottom: 50}}> Ingenioware</Text>
-
         <Text style={styles.subtitle}>
           Donde el aprendizaje es una nueva aventura mágica
         </Text>
@@ -126,46 +180,80 @@ export default function WelcomeScreen() {
 
       {/* Pregunta */}
       <View style={styles.QContainer}>
-        <Text style={styles.question}>¿Quién está por explorar?</Text>
+        <Text style={styles.question}>¿Quién eres?</Text>
       </View>
 
       {/* Tarjetas de selección */}
       <View style={styles.cardsContainer}>
-        <TouchableOpacity 
-          style={styles.card} 
-          activeOpacity={0.8}
-          onPress={handleParentClick}
-        >
-          <View style={styles.iconCircle}>
-            <Ionicons name="person" size={48} color="#6B4423" />
-          </View>
-          <Text style={styles.cardLabel}>Padres</Text>
-          {isParentLoggedIn && (
-            <View style={styles.activeBadge}>
-              <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+        {profiles.map((profile) => (
+          <TouchableOpacity 
+            key={profile.id}
+            style={styles.card} 
+            activeOpacity={0.8}
+            onPress={() => handleProfileClick(profile)}
+          >
+            <View style={[
+              styles.iconCircle, 
+              profile.type === 'parent' && styles.parentIconCircle
+            ]}>
+              {profile.type === 'child' ? (
+                <Text style={styles.avatarEmoji}>{profile.avatar}</Text>
+              ) : (
+                <Ionicons name={profile.avatar as any} size={48} color="#6B4423" />
+              )}
             </View>
-          )}
+            <Text style={styles.cardLabel}>{profile.name}</Text>
+            {/* Todos los perfiles muestran un candado */}
+            <View style={styles.lockBadge}>
+              <Ionicons name="lock-closed" size={16} color="rgba(0,0,0,0.4)" />
+            </View>
+          </TouchableOpacity>
+        ))}
+        {hasParentAccount && (
+      <TouchableOpacity 
+        style={[styles.card, styles.addCard]} 
+        activeOpacity={0.8}
+        onPress={handleAddProfile} // Esta función ya apunta a configPerfilN o registro
+      >
+        <View style={[styles.iconCircle, styles.addIconCircle]}>
+          <Ionicons name="add" size={48} color="#4B0082" />
+        </View>
+        <Text style={styles.cardLabel}>Añadir Niño/a</Text>
+      </TouchableOpacity>
+    )}
+
+    {/* Si NO hay cuenta de padre, mostramos "Crear Cuenta" Y "Login" */}
+    {!hasParentAccount && (
+      <>
+        <TouchableOpacity 
+          style={[styles.card, styles.addCard]} 
+          activeOpacity={0.8}
+          onPress={() => router.push('/registro')} // Ruta directa a registro
+        >
+          <View style={[styles.iconCircle, styles.addIconCircle]}>
+            <Ionicons name="person-add-outline" size={48} color="#4B0082" />
+          </View>
+          <Text style={styles.cardLabel}>Crear Cuenta</Text>
         </TouchableOpacity>
 
+        {/* ¡EL BOTÓN QUE FALTABA! */}
         <TouchableOpacity 
-          style={styles.card} 
+          style={[styles.card, styles.loginCard]} // Usamos un estilo nuevo
           activeOpacity={0.8}
-          onPress={handleChildClick}
+          onPress={() => router.push('/login')} // Ruta a tu login.tsx
         >
-          <View style={styles.iconCircle}>
-            <Ionicons name="happy-outline" size={48} color="#6B4423" />
+          <View style={[styles.iconCircle, styles.loginIconCircle]}>
+            <Ionicons name="log-in-outline" size={48} color="#4B0082" />
           </View>
-          <Text style={styles.cardLabel}>Niña/o</Text>
+          <Text style={styles.cardLabel}>Iniciar Sesión</Text>
         </TouchableOpacity>
+      </>
+    )}
+
+       
       </View>
 
-      {/* Indicador de sesión activa */}
-      {isParentLoggedIn && (
-        <View style={styles.sessionIndicator}>
-          <Ionicons name="information-circle" size={20} color="#4B0082" />
-          <Text style={styles.sessionText}>Sesión de padre activa</Text>
-        </View>
-      )}
+      
     </LinearGradient>
   );
 }
@@ -175,6 +263,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 80,
     paddingHorizontal: 20,
+    justifyContent: 'center', // Centramos el contenido
   },
   loadingContainer: {
     flex: 1,
@@ -185,13 +274,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#4B0082',
     fontWeight: '600',
-  },
-  logo: {
-    width: 220, 
-    height: 220,
-    marginTop: -20,
-    marginBottom: -40,
-    resizeMode: 'contain',
+    marginTop: 10,
   },
   header: {
     alignItems: 'center',
@@ -206,22 +289,22 @@ const styles = StyleSheet.create({
   },
   QContainer: {
     alignItems: 'center',
-    marginBottom: 40,
-    marginTop: 40,
+    marginBottom: 30,
   },
   question: {
-    fontSize: 16,
+    fontSize: 22, // Más grande
     color: '#333',
     fontWeight: '600',
   },
   cardsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between', // Centramos los perfiles
+    flexWrap: 'wrap', // Para que bajen si no caben
     paddingHorizontal: 10,
-    marginHorizontal: -20,
+    
   },
   card: {
-    width: 150,
+    width: '47%',
     height: 160,
     backgroundColor: '#F5E6D3',
     borderRadius: 20,
@@ -236,6 +319,26 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
     position: 'relative',
+    marginBottom: 20, // Espacio por si hay wrapping
+  },
+  loginCard: {
+    backgroundColor: '#F5E6D3',
+    borderStyle: 'solid', // Borde sólido en lugar de punteado
+    borderWidth: 2,
+    borderColor: '#4B0082',
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  loginIconCircle: {
+    backgroundColor: '#f1c893ff',
+  },
+  addCard: {
+    backgroundColor: '#F5E6D3',
+    borderStyle: 'dashed',
+    borderWidth: 2,
+    borderColor: '#4B0082',
+    elevation: 0,
+    shadowOpacity: 0,
   },
   iconCircle: {
     width: 80,
@@ -246,31 +349,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 12,
   },
+  parentIconCircle: {
+    backgroundColor: '#C0D9E5', // Un color diferente para el padre
+  },
+  addIconCircle: {
+    backgroundColor: 'transparent',
+  },
+  avatarEmoji: {
+    fontSize: 48,
+  },
   cardLabel: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
   },
-  activeBadge: {
+  lockBadge: { // Reemplaza 'activeBadge'
     position: 'absolute',
     top: 10,
     right: 10,
-  },
-  sessionIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 30,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
-    borderRadius: 20,
-    alignSelf: 'center',
-    gap: 8,
-  },
-  sessionText: {
-    fontSize: 14,
-    color: '#4B0082',
-    fontWeight: '500',
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderRadius: 10,
+    padding: 2,
   },
 });

@@ -3,12 +3,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
-    Dimensions,
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -46,12 +46,12 @@ export default function OnboardingScreen() {
         animated: true,
       });
     } else {
-       router.push('/configPerfilN');
+       router.push('./configPerfilN');
     }
   };
 
   const handleSkip = () => {
-     router.push('/configPerfilN');
+     router.push('./configPerfilN');
   };
 
   const renderItem = ({ item }: { item: typeof slides[0] }) => (

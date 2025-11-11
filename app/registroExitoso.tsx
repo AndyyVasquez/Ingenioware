@@ -10,7 +10,7 @@ export default function RegistroExitoso() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      router.push('/onboarding');
+      router.push('./onboarding');
     }, 5000);
 
     return () => clearTimeout(timer);

@@ -1,9 +1,7 @@
-// (app)/(parent)/ParentDataContext.tsx
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { createContext, useContext, useEffect, useState } from 'react';
-
+import { Tema, temasDB } from '../data/temasConversacion';
 // Interfaces (puedes moverlas a un archivo de 'types' luego)
 interface ChildData {
   id_nino: number;
@@ -26,6 +24,7 @@ interface ParentContextType {
   parentName: string;
   alertasNuevas: number;
   alertasCriticas: number;
+  temaDelDia: Tema | null;
   isLoading: boolean;
   recargarDatos: () => void;
 }
@@ -40,6 +39,7 @@ export function ParentDataProvider({ children }: { children: React.ReactNode }) 
   const [parentName, setParentName] = useState('');
   const [alertasNuevas, setAlertasNuevas] = useState(0);
   const [alertasCriticas, setAlertasCriticas] = useState(0);
+  const [temaDelDia, setTemaDelDia] = useState<Tema | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -51,6 +51,7 @@ export function ParentDataProvider({ children }: { children: React.ReactNode }) 
     try {
       await loadData();
       await cargarAlertas();
+      await cargarTemaDelDia(); 
     } catch (error) {
       console.error('Error cargando datos del padre:', error);
     } finally {
@@ -86,11 +87,44 @@ export function ParentDataProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
+  const cargarTemaDelDia = async () => {
+    try {
+      const progresoStr = await AsyncStorage.getItem('progresoJuegos');
+      if (!progresoStr) {
+        setTemaDelDia(null); // No ha jugado nada
+        return;
+      }
+      
+      const juegosCompletados: string[] = JSON.parse(progresoStr);
+      if (juegosCompletados.length === 0) {
+        setTemaDelDia(null);
+        return;
+      }
+
+      // Tomamos el ÚLTIMO valor que completó
+      const ultimoValorCompletado = juegosCompletados[juegosCompletados.length - 1];
+      
+      // Lo buscamos en nuestra base de datos de temas
+      const tema = temasDB[ultimoValorCompletado];
+      if (tema) {
+        setTemaDelDia(tema);
+      } else {
+        setTemaDelDia(null);
+      }
+    } catch (error) {
+      console.error('Error cargando tema del día:', error);
+      setTemaDelDia(null);
+    }
+  };
+
+
+
   const value = {
     childData,
     parentName,
     alertasNuevas,
     alertasCriticas,
+    temaDelDia,
     isLoading,
     recargarDatos: cargarTodo,
   };

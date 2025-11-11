@@ -50,6 +50,7 @@ export default function LoginScreen() {
       // Guardar sesión del padre
       await AsyncStorage.setItem('parentSession', JSON.stringify(datosSimulados));
       await AsyncStorage.setItem('hasParentAccount', 'true');
+      await AsyncStorage.setItem('parentPin', '1234');
       
       // Importante: También guardar que tiene niños registrados
       await AsyncStorage.setItem('hasChildren', datosSimulados.tiene_ninos ? 'true' : 'false');
@@ -57,7 +58,7 @@ export default function LoginScreen() {
       console.log('Sesión guardada exitosamente');
       
       // Navegar al dashboard del padre
-     router.replace('./(parent)/(tabs)/');
+     router.replace('./parent/(tabs)/');
       
     } catch (error) {
       console.error('Error en login:', error);

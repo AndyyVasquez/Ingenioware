@@ -27,10 +27,17 @@ export default function RegistroPadres() {
   const [confirmPassword, setConfirmPassword] = useState('');
   
   // Estado del PIN
-  const [pin, setPin] = useState(['', '', '', '']);
+  const [pinNino, setPinNino] = useState(['', '', '', '']);
+  const [pinPadre, setPinPadre] = useState(['', '', '', '']);
   
   // Referencias para los inputs del PIN
-  const pinRefs = [
+  const pinNinoRefs = [
+    useRef<TextInput>(null),
+    useRef<TextInput>(null),
+    useRef<TextInput>(null),
+    useRef<TextInput>(null),
+  ];
+  const pinPadreRefs = [
     useRef<TextInput>(null),
     useRef<TextInput>(null),
     useRef<TextInput>(null),
@@ -48,26 +55,45 @@ export default function RegistroPadres() {
   // Estado de carga
   const [isLoading, setIsLoading] = useState(false);
 
-  const handlePinChange = (value: string, index: number) => {
-    // Solo permitir números
+  // --- FUNCIONES PARA EL PIN DEL NIÑO ---
+  const handlePinNinoChange = (value: string, index: number) => {
     if (value && !/^\d+$/.test(value)) return;
     
-    const newPin = [...pin];
+    const newPin = [...pinNino];
     newPin[index] = value;
-    setPin(newPin);
+    setPinNino(newPin);
 
-    // Auto-focus al siguiente input si se ingresó un valor
     if (value && index < 3) {
-      pinRefs[index + 1].current?.focus();
+      pinNinoRefs[index + 1].current?.focus();
     }
   };
 
-  const handlePinKeyPress = (e: any, index: number) => {
-    // Si presiona backspace y el campo está vacío, ir al anterior
-    if (e.nativeEvent.key === 'Backspace' && !pin[index] && index > 0) {
-      pinRefs[index - 1].current?.focus();
+  const handlePinNinoKeyPress = (e: any, index: number) => {
+    if (e.nativeEvent.key === 'Backspace' && !pinNino[index] && index > 0) {
+      pinNinoRefs[index - 1].current?.focus();
     }
   };
+
+  // --- NUEVAS FUNCIONES PARA EL PIN DEL PADRE ---
+  const handlePinPadreChange = (value: string, index: number) => {
+    if (value && !/^\d+$/.test(value)) return;
+    
+    const newPin = [...pinPadre];
+    newPin[index] = value;
+    setPinPadre(newPin);
+
+    if (value && index < 3) {
+      pinPadreRefs[index + 1].current?.focus();
+    }
+  };
+
+  const handlePinPadreKeyPress = (e: any, index: number) => {
+    if (e.nativeEvent.key === 'Backspace' && !pinPadre[index] && index > 0) {
+      pinPadreRefs[index - 1].current?.focus();
+    }
+  };
+
+  // (La función 'handlePinKeyPress' genérica fue eliminada)
 
   const validarFormulario = () => {
     // Validar campos del padre
@@ -94,10 +120,17 @@ export default function RegistroPadres() {
       return false;
     }
 
-    // Validar PIN
-    const pinCompleto = pin.every(digit => digit !== '');
-    if (!pinCompleto) {
-      Alert.alert('Error', 'Por favor completa el PIN de 4 dígitos');
+    // Validar PIN del Padre
+    const pinPadreCompleto = pinPadre.every(digit => digit !== '');
+    if (!pinPadreCompleto) {
+      Alert.alert('Error', 'Por favor completa el PIN de Padre de 4 dígitos');
+      return false;
+    }
+
+    // Validar PIN del Niño
+    const pinNinoCompleto = pinNino.every(digit => digit !== '');
+    if (!pinNinoCompleto) {
+      Alert.alert('Error', 'Por favor completa el PIN del Niño de 4 dígitos');
       return false;
     }
 
@@ -132,48 +165,48 @@ export default function RegistroPadres() {
   };
 
   const handleRegistro = async () => {
-    // Validar formulario
     if (!validarFormulario()) {
       return;
     }
 
     setIsLoading(true);
 
+    // --- LÓGICA DE REGISTRO CORREGIDA ---
+
+    // 1. Definir todos los datos PRIMERO
+    const pinNinoString = pinNino.join('');
+    const pinPadreString = pinPadre.join('');
+
+    const datosNuevoPadre = {
+      id_pad: 1, // Este ID vendría de tu backend
+      nombre_completo: `${nomP} ${apP} ${amP}`,
+      nom_pad: nomP,
+      ap_pad: apP,
+      am_pad: amP,
+      correo_pad: email,
+      token: 'fake-jwt-token-12345', // Token real vendrá del backend
+      tiene_ninos: true,
+    };
+
+    const datosNuevoNino = {
+      id_nino: 1, // Este ID vendría de tu backend
+      nombre_completo: `${nomN} ${apN} ${amN}`,
+      nom_nino: nomN,
+      ap_nino: apN,
+      am_nino: amN,
+      edad_nino: parseInt(edadN),
+      fec_nac_nino: fecnacN,
+      sexo_nino: sexoN,
+      avatar_emoji: '🦁', // Avatar por defecto
+    };
+
+    // 2. Ejecutar el guardado en AsyncStorage
     try {
-      // Aquí irá tu llamada al backend en el futuro
-      // Por ahora simulamos el registro
-      
-      // Simular delay de red
       await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // Datos del padre
-      const datosNuevoPadre = {
-        id_pad: 1, // Este ID vendría de tu backend
-        nombre_completo: `${nomP} ${apP} ${amP}`,
-        nom_pad: nomP,
-        ap_pad: apP,
-        am_pad: amP,
-        correo_pad: email,
-        token: 'fake-jwt-token-12345', // Token real vendrá del backend
-        tiene_ninos: true,
-      };
-
-      // Datos del niño
-      const datosNuevoNino = {
-        id_nino: 1, // Este ID vendría de tu backend
-        nombre_completo: `${nomN} ${apN} ${amN}`,
-        nom_nino: nomN,
-        ap_nino: apN,
-        am_nino: amN,
-        edad_nino: parseInt(edadN),
-        fec_nac_nino: fecnacN,
-        sexo_nino: sexoN,
-        avatar_emoji: '🦁', // Avatar por defecto
-      };
-
-      // Guardar el PIN del niño
-      const pinString = pin.join(''); // ['1','2','3','4'] -> '1234'
-      await AsyncStorage.setItem('childPin', pinString);
+      // Guardar PINes
+      await AsyncStorage.setItem('childPin', pinNinoString);
+      await AsyncStorage.setItem('parentPin', pinPadreString);
 
       // Guardar sesión del padre
       await AsyncStorage.setItem('parentSession', JSON.stringify(datosNuevoPadre));
@@ -184,11 +217,12 @@ export default function RegistroPadres() {
       await AsyncStorage.setItem('childData', JSON.stringify(datosNuevoNino));
 
       console.log('✅ Registro exitoso');
-      console.log('PIN guardado:', pinString);
+      console.log('PIN Niño guardado:', pinNinoString);
+      console.log('PIN Padre guardado:', pinPadreString);
       console.log('Datos padre:', datosNuevoPadre);
       console.log('Datos niño:', datosNuevoNino);
 
-      // Navegar a la pantalla de éxito
+      // 3. Navegar
       router.push('/registroExitoso');
 
     } catch (error) {
@@ -277,17 +311,19 @@ export default function RegistroPadres() {
             />
           </View>
 
-          {/* PIN de Seguridad */}
+          {/* --- JSX CORREGIDO --- */}
+
+          {/* PIN de Seguridad (Padre) */}
           <View style={styles.pinSection}>
-            <Text style={styles.pinTitle}>PIN de Seguridad (4 dígitos)</Text>
+            <Text style={styles.pinTitle}>PIN de Acceso (Padre)</Text>
             <Text style={styles.pinSubtitle}>
-              El niño usará este PIN para acceder a la app
+              Usarás este PIN para acceder a tu perfil de padre
             </Text>
             <View style={styles.pinContainer}>
-              {pin.map((digit, index) => (
+              {pinPadre.map((digit, index) => (
                 <TextInput
-                  key={index}
-                  ref={pinRefs[index]}
+                  key={`padre-${index}`}
+                  ref={pinPadreRefs[index]}
                   style={[
                     styles.pinInput,
                     digit && styles.pinInputFilled,
@@ -295,10 +331,35 @@ export default function RegistroPadres() {
                   maxLength={1}
                   keyboardType="number-pad"
                   value={digit}
-                  onChangeText={(value) => handlePinChange(value, index)}
-                  onKeyPress={(e) => handlePinKeyPress(e, index)}
+                  onChangeText={(value) => handlePinPadreChange(value, index)}
+                  onKeyPress={(e) => handlePinPadreKeyPress(e, index)}
                   secureTextEntry
-                  selectTextOnFocus
+                />
+              ))}
+            </View>
+          </View>
+
+          {/* PIN de Seguridad (Niño) */}
+          <View style={styles.pinSection}>
+            <Text style={styles.pinTitle}>PIN del Niño (4 dígitos)</Text>
+            <Text style={styles.pinSubtitle}>
+              El niño usará este PIN para acceder a su perfil
+            </Text>
+            <View style={styles.pinContainer}>
+              {pinNino.map((digit, index) => (
+                <TextInput
+                  key={`nino-${index}`}
+                  ref={pinNinoRefs[index]}
+                  style={[
+                    styles.pinInput,
+                    digit && styles.pinInputFilled,
+                  ]}
+                  maxLength={1}
+                  keyboardType="number-pad"
+                  value={digit}
+                  onChangeText={(value) => handlePinNinoChange(value, index)}
+                  onKeyPress={(e) => handlePinNinoKeyPress(e, index)}
+                  secureTextEntry
                 />
               ))}
             </View>
@@ -394,119 +455,120 @@ export default function RegistroPadres() {
   );
 }
 
+// ... (los estilos son los mismos)
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    marginBottom: 20,
-    backgroundColor: '#81B7D2',
-  },
-  backButton: {
-    marginRight: 16,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#333',
-  },
-  section: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 16,
-  },
-  input: {
-    backgroundColor: '#F5E6D3',
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 12,
-  },
-  pinSection: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  pinTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  pinSubtitle: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 16,
-  },
-  pinContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 10,
-  },
-  pinInput: {
-    width: 60,
-    height: 60,
-    backgroundColor: '#F5E6D3',
-    borderRadius: 12,
-    textAlign: 'center',
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#333',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  pinInputFilled: {
-    borderColor: '#4B0082',
-    backgroundColor: '#E8D5FF',
-  },
-  dropdown: {
-    backgroundColor: '#F5E6D3',
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  dropdownText: {
-    fontSize: 14,
-    color: '#333',
-  },
-  placeholderText: {
-    color: '#999',
-  },
-  createButton: {
-    backgroundColor: '#f4a261',
-    marginHorizontal: 20,
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  createButtonDisabled: {
-    backgroundColor: '#d4a373',
-    opacity: 0.7,
-  },
-  createButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  bottomSpacer: {
-    height: 40,
-  },
+  container: {
+    flex: 1,
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    marginBottom: 20,
+    backgroundColor: '#81B7D2',
+  },
+  backButton: {
+    marginRight: 16,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+  },
+  section: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 16,
+  },
+  input: {
+    backgroundColor: '#F5E6D3',
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 12,
+  },
+  pinSection: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  pinTitle: {
+    fontSize: 16,
+  	fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  pinSubtitle: {
+  	fontSize: 12,
+    color: '#666',
+    marginBottom: 16,
+  },
+  pinContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+  },
+  pinInput: {
+    width: 60,
+    height: 60,
+    backgroundColor: '#F5E6D3',
+    borderRadius: 12,
+    textAlign: 'center',
+    fontSize: 24,
+    fontWeight: '600',
+    color: 'transparent', // <-- Para ocultar el número (bug de secureTextEntry)
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  pinInputFilled: {
+    borderColor: '#4B0082',
+    backgroundColor: '#E8D5FF',
+  },
+  dropdown: {
+    backgroundColor: '#F5E6D3',
+   borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dropdownText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  placeholderText: {
+    color: '#999',
+  },
+  createButton: {
+    backgroundColor: '#f4a261',
+    marginHorizontal: 20,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  	marginTop: 10,
+  },
+  createButtonDisabled: {
+    backgroundColor: '#d4a373',
+  	opacity: 0.7,
+  },
+  createButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  bottomSpacer: {
+    height: 40,
+  },
 });

@@ -3,11 +3,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 const avatars = [
@@ -42,7 +42,7 @@ export default function ChildProfileSetupScreen() {
 
   const handleFinish = () => {
     // Aquí guardarías las preferencias
-    router.push('/(tabs)'); // Navegar al dashboard principal
+    router.push('./'); // Navegar al dashboard principal
   };
 
   return (
@@ -133,7 +133,7 @@ export default function ChildProfileSetupScreen() {
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={styles.skipButton}
-            onPress={() => router.push('/(tabs)')}
+            onPress={() => router.push('./')}
           >
             <Text style={styles.skipButtonText}>Saltar por ahora</Text>
           </TouchableOpacity>

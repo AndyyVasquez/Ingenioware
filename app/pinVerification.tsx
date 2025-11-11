@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -15,10 +15,17 @@ import {
 
 export default function PINVerificationScreen() {
   const router = useRouter();
+  // Obtenemos los parámetros pasados desde la pantalla de selección
+  const params = useLocalSearchParams();
+
   const [pin, setPin] = useState(['', '', '', '']);
   const [attempts, setAttempts] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [canAccess, setCanAccess] = useState(false);
+
+  // Estados para el perfil actual
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [profileType, setProfileType] = useState<'parent' | 'child' | null>(null);
+  const [profileName, setProfileName] = useState<string>('');
   
   const inputRefs = [
     useRef<TextInput>(null),
@@ -28,135 +35,139 @@ export default function PINVerificationScreen() {
   ];
   const shakeAnimation = useRef(new Animated.Value(0)).current;
 
+    const hasFocused = useRef(false);
+
   useEffect(() => {
-    verificarAcceso();
-  }, []);
+    // Reemplazamos 'verificarAcceso' con esta lógica
+    const { profileId, profileType, name } = params;
 
-  const verificarAcceso = async () => {
-    try {
-      // Verificar que exista cuenta de padre
-      const hasParentAccount = await AsyncStorage.getItem('hasParentAccount');
-      
-      // Verificar que haya sesión activa de padre
-      const parentSession = await AsyncStorage.getItem('parentSession');
-      
-      // Verificar que existan datos del niño
-      const childData = await AsyncStorage.getItem('childData');
-      
-      console.log('Has parent account:', hasParentAccount);
-      console.log('Parent session:', parentSession ? 'Activa' : 'No activa');
-      console.log('Child data:', childData ? 'Existe' : 'No existe');
-      
-      if (!hasParentAccount || !parentSession) {
-        Alert.alert(
-          'Acceso no disponible',
-          'Necesitas iniciar sesión como padre primero.',
-          [
-            {
-              text: 'Iniciar sesión',
-              onPress: () => router.replace('/login'),
-            },
-            {
-              text: 'Volver',
-              onPress: () => router.back(),
-              style: 'cancel',
-            },
-          ]
-        );
-        return;
-      }
+    if (!profileId || !profileType || !name) {
+      Alert.alert(
+        'Error de perfil',
+        'No se seleccionó un perfil. Volviendo al inicio.',
+        [{ text: 'OK', onPress: () => router.replace('/') }]
+      );
+      return;
+    }
 
-      if (!childData) {
-        Alert.alert(
-          'Sin perfil de niño',
-          'Aún no se ha registrado un perfil de niño.',
-          [
-            {
-              text: 'OK',
-              onPress: () => router.back(),
-            },
-          ]
-        );
-        return;
-      }
-
-      setCanAccess(true);
-      // Enfocar el primer input
+    // Guardamos los datos del perfil que está intentando entrar
+    setProfileId(profileId as string);
+    setProfileType(profileType as 'parent' | 'child');
+    setProfileName(name as string);
+    setLoading(false);
+   if (!hasFocused.current) {
       setTimeout(() => {
         inputRefs[0].current?.focus();
+        hasFocused.current = true; // Subimos al guardia. Ya no se volverá a ejecutar.
       }, 100);
-      
-    } catch (error) {
-      console.error('Error verificando acceso:', error);
-      Alert.alert('Error', 'No se pudo verificar el acceso');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePinChange = (value: string, index: number) => {
-    // Solo permitir números
-    if (value && !/^\d+$/.test(value)) return;
-
-    const newPin = [...pin];
-    newPin[index] = value;
-    setPin(newPin);
-
-    // Auto-focus al siguiente input
-    if (value && index < 3) {
-      inputRefs[index + 1].current?.focus();
     }
 
-    // Verificar PIN cuando esté completo
-    if (newPin.every(digit => digit !== '') && index === 3) {
-      verifyPin(newPin.join(''));
+  }, [params]);// Se ejecuta cada vez que los parámetros cambian
+
+const handlePinChange = (value: string, index: number) => {
+    // 1. Si el usuario pega un código completo (ej. del SMS)
+    if (value.length > 1 && value.length === 4 && /^\d+$/.test(value)) {
+      setPin(value.split(''));
+      verifyPin(value); // Verificarlo de inmediato
+      return;
+    }
+
+    // 2. Si el usuario teclea un solo número
+    if (value && /^\d$/.test(value)) {
+      const newPin = [...pin];
+      newPin[index] = value;
+      setPin(newPin);
+
+      // Mover foco al siguiente
+      if (index < 3) {
+        inputRefs[index + 1].current?.focus();
+      }
+
+      // Verificar si ya se llenó el último
+      const finalPin = newPin.join('');
+      if (finalPin.length === 4) {
+        verifyPin(finalPin);
+      }
+    } 
+    // 3. Si el usuario borra (el value es ''),
+    // solo actualizamos el estado, pero NO movemos el foco.
+    // De eso se encargará handleKeyPress.
+    else if (value === '') {
+      const newPin = [...pin];
+      newPin[index] = '';
+      setPin(newPin);
     }
   };
 
   const handleKeyPress = (e: any, index: number) => {
-    // Retroceder al input anterior si se presiona backspace
-    if (e.nativeEvent.key === 'Backspace' && !pin[index] && index > 0) {
-      inputRefs[index - 1].current?.focus();
+    // Si la tecla es "Backspace"
+    // Y el input actual YA ESTÁ vacío (pin[index] === '')
+    // Y no es el primer input (index > 0)
+    if (e.nativeEvent.key === 'Backspace' && pin[index] === '' && index > 0) {
+      // Mover foco al input anterior
+      inputRefs[index].current?.focus();
     }
   };
 
+
   const verifyPin = async (enteredPin: string) => {
     try {
-      // Obtener el PIN guardado
-      const savedPin = await AsyncStorage.getItem('childPin');
+      let savedPinKey = '';
+      let successRoute = '';
+
+      // Decidimos qué PIN buscar y a dónde ir
+      if (profileType === 'child') {
+        savedPinKey = 'childPin';
+        successRoute = '/dashboardN';
+      } else if (profileType === 'parent') {
+        // Asumimos que el PIN del padre se guarda como 'parentPin'
+        // (Debes asegurar esto en tu flujo de registro de padre)
+        savedPinKey = 'parentPin';
+        successRoute = '/parent/(tabs)/';
+      } else {
+        throw new Error('Tipo de perfil no válido');
+      }
+
+      const savedPin = await AsyncStorage.getItem(savedPinKey);
       
+      console.log(`Intentando accder como: ${profileName} (${profileType})`);
       console.log('PIN ingresado:', enteredPin);
-      console.log('PIN guardado:', savedPin);
+      console.log(`PIN guardado (${savedPinKey}):`, savedPin);
 
       if (!savedPin) {
-        Alert.alert('Error', 'No se encontró el PIN configurado');
+        Alert.alert('Error', `No se encontró un PIN configurado para ${profileName}.`);
+        setPin(['', '', '', '']);
+        inputRefs[0].current?.focus();
         return;
       }
 
       if (enteredPin === savedPin) {
-        // PIN correcto - Crear sesión del niño
-        const childDataStr = await AsyncStorage.getItem('childData');
+        // ¡PIN correcto!
+        console.log(`✅ PIN correcto para ${profileName}`);
         
-        if (childDataStr) {
-          const childData = JSON.parse(childDataStr);
-          
-          const childSession = {
-            id_nino: childData.id_nino,
-            nombre_completo: childData.nombre_completo,
-            avatar_emoji: childData.avatar_emoji,
-            loginTime: new Date().toISOString(),
-            authenticatedWithPin: true,
-          };
-          
-          await AsyncStorage.setItem('childSession', JSON.stringify(childSession));
-          
-          console.log('✅ PIN correcto - Sesión del niño creada');
-          
-          // Navegar al dashboard del niño
-          router.replace('/dashboardN');
-        } else {
-          Alert.alert('Error', 'No se encontraron datos del niño');
+        if (profileType === 'child') {
+          // Creamos la sesión del niño (lógica que ya tenías)
+          const childDataStr = await AsyncStorage.getItem('childData');
+          if (childDataStr) {
+            const childData = JSON.parse(childDataStr);
+            const childSession = {
+              id_nino: childData.id_nino,
+              nombre_completo: childData.nombre_completo,
+              avatar_emoji: childData.avatar_emoji,
+              loginTime: new Date().toISOString(),
+              authenticatedWithPin: true,
+            };
+            await AsyncStorage.setItem('childSession', JSON.stringify(childSession));
+            console.log('Sesión del niño creada');
+          }
         }
+        // NOTA: No necesitamos crear la sesión del padre aquí,
+        // porque el PIN es solo un *bloqueo*. La sesión ya debe existir
+        // (según la lógica de 'login.tsx').
+
+        // Navegar al dashboard correspondiente
+        router.replace(successRoute as any);
+
       } else {
         // PIN incorrecto
         setAttempts(attempts + 1);
@@ -166,12 +177,7 @@ export default function PINVerificationScreen() {
           Alert.alert(
             'Demasiados intentos',
             'Has superado el número de intentos permitidos.',
-            [
-              {
-                text: 'Volver',
-                onPress: () => router.back(),
-              },
-            ]
+            [{ text: 'Volver', onPress: () => router.replace('/') }]
           );
         } else {
           Alert.alert(
@@ -197,25 +203,47 @@ export default function PINVerificationScreen() {
     ]).start();
   };
 
+  const handleForgotPin = () => {
+    if (profileType === 'parent') {
+      // Si es el padre, lo mandamos a recuperar su contraseña/PIN
+      Alert.alert(
+        '¿Olvidaste tu PIN?',
+        'Puedes restablecer tu PIN desde la configuración de tu cuenta o recuperando tu contraseña.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Recuperar', onPress: () => router.push('/forgotPass') }
+        ]
+      );
+    } else {
+      // Si es el niño, le pide ayuda
+      Alert.alert(
+        '¿Necesitas ayuda?',
+        'Pide a un adulto que te ayude con tu PIN',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
   if (loading) {
     return (
       <LinearGradient colors={['#B8D4E0', '#FAD4C0']} style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Verificando acceso...</Text>
+          <Text style={styles.loadingText}>Cargando perfil...</Text>
         </View>
       </LinearGradient>
     );
   }
 
-  if (!canAccess) {
-    return null;
+  // ¡No renderiza nada si el perfil no se cargó! (Ya lo maneja el useEffect)
+  if (!profileType) {
+    return null; 
   }
 
   return (
     <LinearGradient colors={['#B8D4E0', '#FAD4C0']} style={styles.container}>
       <TouchableOpacity 
         style={styles.backButton}
-        onPress={() => router.back()}
+        onPress={() => router.replace('/')} // Volver al selector de perfiles
       >
         <Ionicons name="arrow-back" size={24} color="#333" />
       </TouchableOpacity>
@@ -225,7 +253,8 @@ export default function PINVerificationScreen() {
           <View style={styles.iconContainer}>
             <Text style={styles.emoji}>🔒</Text>
           </View>
-          <Text style={styles.title}>¡Hola!</Text>
+          {/* --- Título Dinámico --- */}
+          <Text style={styles.title}>¡Hola, {profileName}!</Text>
           <Text style={styles.subtitle}>
             Ingresa tu PIN secreto para continuar
           </Text>
@@ -251,7 +280,8 @@ export default function PINVerificationScreen() {
               onChangeText={(value) => handlePinChange(value, index)}
               onKeyPress={(e) => handleKeyPress(e, index)}
               secureTextEntry
-              selectTextOnFocus
+              textContentType="password" 
+              autoComplete="password"
             />
           ))}
         </Animated.View>
@@ -264,24 +294,17 @@ export default function PINVerificationScreen() {
 
         <TouchableOpacity 
           style={styles.helpButton}
-          onPress={() => {
-            Alert.alert(
-              '¿Necesitas ayuda?',
-              'Pide a un adulto que te ayude con tu PIN',
-              [{ text: 'OK' }]
-            );
-          }}
+          onPress={handleForgotPin} // <-- Lógica dinámica
         >
           <Ionicons name="help-circle-outline" size={20} color="#4B0082" />
           <Text style={styles.helpButtonText}>¿Olvidaste tu PIN?</Text>
         </TouchableOpacity>
-
-      
       </View>
     </LinearGradient>
   );
 }
 
+// ... (los estilos son los mismos)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -349,7 +372,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 24,
     fontWeight: '600',
-    color: '#333',
+    color: 'transparent',
     borderWidth: 2,
     borderColor: 'transparent',
   },
@@ -376,27 +399,5 @@ const styles = StyleSheet.create({
     color: '#4B0082',
     fontSize: 16,
     fontWeight: '500',
-  },
-  numberPad: {
-    marginTop: 20,
-  },
-  numberPadRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 20,
-    marginBottom: 20,
-  },
-  numberButton: {
-    width: 70,
-    height: 70,
-    backgroundColor: '#F5E6D3',
-    borderRadius: 35,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  numberButtonText: {
-    fontSize: 28,
-    fontWeight: '600',
-    color: '#333',
   },
 });

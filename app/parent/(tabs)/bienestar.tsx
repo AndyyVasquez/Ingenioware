@@ -1,10 +1,9 @@
-// (app)/(parent)/(tabs)/bienestar.tsx
-
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,7 +13,18 @@ import {
 import { useParentData } from '../parentDataContext';
 
 export default function BienestarScreen() {
-  const { alertasNuevas, alertasCriticas, isLoading } = useParentData();
+    const { alertasNuevas, alertasCriticas, isLoading, temaDelDia } = useParentData();
+
+  const handleVerSugerencia = () => {
+    if (!temaDelDia) return;
+    
+    // Mostramos la pregunta en un Alert (o podrías hacer un Modal)
+    Alert.alert(
+      temaDelDia.titulo,
+      temaDelDia.pregunta,
+      [{ text: '¡Entendido!' }]
+    );
+  };
 
   if (isLoading) {
     return (
@@ -72,43 +82,47 @@ export default function BienestarScreen() {
           </View>
         </View>
         
-        {/* NUEVO: Temas de Conversación (Placeholder) */}
-        <View style={styles.section}>
+<View style={styles.section}>
           <Text style={styles.sectionTitle}>Temas de Conversación</Text>
-          <View style={styles.temaCard}>
-            <View style={styles.temaIcono}>
-              <Ionicons name="chatbubbles-outline" size={32} color="#4B0082" />
+          
+          {temaDelDia ? (
+            // Si SÍ hay un tema...
+            <View style={styles.temaCard}>
+              <View style={styles.temaIcono}>
+                <Ionicons name={temaDelDia.icono} size={32} color="#4B0082" />
+              </View>
+              <View style={styles.temaInfo}>
+                <Text style={styles.temaTitulo}>{temaDelDia.titulo}</Text>
+                <Text style={styles.temaTexto}>
+                  {temaDelDia.descripcion}
+                </Text>
+                <TouchableOpacity 
+                  style={styles.temaBoton}
+                  onPress={handleVerSugerencia} // <-- Conectado
+                >
+                  <Text style={styles.temaBotonTexto}>Ver sugerencia</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={styles.temaInfo}>
-              <Text style={styles.temaTitulo}>¡Hablen sobre la Honestidad!</Text>
-              <Text style={styles.temaTexto}>
-                Valo y tu hijo/a han estado explorando el valor de la honestidad.
+          ) : (
+            // Si NO hay un tema (el niño no ha jugado)...
+            <View style={styles.temaVacioCard}>
+              <Ionicons name="chatbubbles-outline" size={32} color="#666" />
+              <Text style={styles.temaVacioTexto}>
+                Cuando tu hijo/a complete un juego de valores, aquí aparecerán sugerencias para hablar.
               </Text>
-              <TouchableOpacity style={styles.temaBoton}>
-                <Text style={styles.temaBotonTexto}>Ver sugerencias</Text>
-              </TouchableOpacity>
             </View>
-          </View>
+          )}
         </View>
 
-        {/* Historial de Alertas (Simulado) */}
+        {/* ... (El historial de alertas se queda igual) ... */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Historial de Alertas</Text>
-          
           <View style={styles.alertaHistorialCard}>
              <Ionicons name="alert-circle-outline" size={24} color="#FF6B6B" />
              <View style={styles.alertaHistorialInfo}>
                 <Text style={styles.alertaHistorialTitulo}>Alerta Crítica (Atendida)</Text>
                 <Text style={styles.alertaHistorialFecha}>Hace 3 días</Text>
-             </View>
-             <Ionicons name="chevron-forward" size={24} color="#999" />
-          </View>
-          
-          <View style={styles.alertaHistorialCard}>
-             <Ionicons name="notifications-outline" size={24} color="#FFB84D" />
-             <View style={styles.alertaHistorialInfo}>
-                <Text style={styles.alertaHistorialTitulo}>Alerta Moderada (Atendida)</Text>
-                <Text style={styles.alertaHistorialFecha}>Hace 1 semana</Text>
              </View>
              <Ionicons name="chevron-forward" size={24} color="#999" />
           </View>
@@ -120,7 +134,6 @@ export default function BienestarScreen() {
   );
 }
 
-// Los estilos son los mismos que te pasé en la respuesta anterior
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -266,6 +279,22 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontWeight: '600',
     fontSize: 12,
+  },
+  temaVacioCard: { // <-- NUEVO
+    backgroundColor: '#F5F5F5',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 2,
+    borderColor: '#E0E0E0',
+    borderStyle: 'dashed',
+  },
+  temaVacioTexto: { // <-- NUEVO
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   alertaHistorialCard: {
     backgroundColor: '#FFF',

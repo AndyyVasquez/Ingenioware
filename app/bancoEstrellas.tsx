@@ -4,13 +4,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    Animated,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Animated,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 interface HistorialItem {
@@ -216,15 +216,15 @@ export default function BancoEstrellasScreen() {
           <View style={styles.quickActionsGrid}>
             <TouchableOpacity
               style={styles.quickActionCard}
-              onPress={() => router.push('/miJardin')}
+              onPress={() => router.push('/miArmario')}
             >
               <View style={[styles.quickActionIcon, { backgroundColor: '#95E1D3' }]}>
-                <Text style={styles.quickActionEmoji}>🌳</Text>
+                <Text style={styles.quickActionEmoji}>👖</Text>
               </View>
-              <Text style={styles.quickActionText}>Mi Jardín</Text>
+              <Text style={styles.quickActionText}>Mi armario</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.quickActionCard}
               onPress={() => router.push('/tiendaPremios')}
             >
@@ -232,7 +232,7 @@ export default function BancoEstrellasScreen() {
                 <Text style={styles.quickActionEmoji}>🎁</Text>
               </View>
               <Text style={styles.quickActionText}>Premios</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
         </View>
 
