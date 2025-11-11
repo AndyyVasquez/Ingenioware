@@ -1,17 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
+import { AvatarEquipado, tiendaItems } from './data/tiendaData';
 
 interface Categoria {
   id_categoria: number;
@@ -34,6 +36,13 @@ export default function ChildDashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [ninoData, setNinoData] = useState<NinoData | null>(null);
   const [entradasDiario, setEntradasDiario] = useState(0);
+  const [avatarBase, setAvatarBase] = useState('?');
+  const [equipado, setEquipado] = useState<AvatarEquipado>({
+    sombrero: null,
+    lentes: null,
+    ropa: null,
+    fondo: null,
+  });
   const [categorias] = useState<Categoria[]>([
     {
       id_categoria: 1,
@@ -84,10 +93,13 @@ export default function ChildDashboardScreen() {
     },
   ]);
 
-  useEffect(() => {
-    verificarSesion();
-    cargarEntradasDiario();
-  }, []);
+useFocusEffect(
+    useCallback(() => {
+      verificarSesion();
+      cargarEntradasDiario();
+      cargarAvatar(); 
+    }, [])
+  );
 
   const verificarSesion = async () => {
     try {
@@ -113,14 +125,29 @@ export default function ChildDashboardScreen() {
       const datos = {
         ...session,
         apodo: data.apodo || session.apodo, 
+        avatar_emoji: data.avatar_emoji || '🦁',
       };
       setNinoData(datos);
+      setAvatarBase(datos.avatar_emoji);
       
     } catch (error) {
       console.error('Error verificando sesión:', error);
       Alert.alert('Error', 'No se pudo verificar la sesión');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const cargarAvatar = async () => {
+    try {
+      const equipadoStr = await AsyncStorage.getItem('avatarEquipado');
+      if (equipadoStr) {
+        setEquipado(JSON.parse(equipadoStr));
+      } else {
+        setEquipado({ sombrero: null, lentes: null, ropa: null, fondo: null });
+      }
+    } catch (error) {
+      console.error('Error cargando avatar equipado:', error);
     }
   };
 
@@ -183,6 +210,11 @@ export default function ChildDashboardScreen() {
     return iconMap[iconName] || 'star';
   };
 
+  const sombreroEquipado = tiendaItems.find(item => item.id === equipado.sombrero);
+  const lentesEquipados = tiendaItems.find(item => item.id === equipado.lentes);
+  const ropaEquipada = tiendaItems.find(item => item.id === equipado.ropa);
+  const fondoEquipado = tiendaItems.find(item => item.id === equipado.fondo);
+
   if (loading) {
     return (
       <LinearGradient colors={['#B8D4E0', '#FAD4C0']} style={styles.container}>
@@ -227,6 +259,30 @@ export default function ChildDashboardScreen() {
             <Ionicons name="exit-outline" size={28} color="#4B0082" />
           </TouchableOpacity>
         </View>
+
+        <TouchableOpacity 
+          style={styles.avatarButton}
+          onPress={() => router.push('/miArmario')} // Lo hacemos un botón
+        >
+          <View style={styles.avatarCanvas}>
+            {fondoEquipado && (
+              <Image source={fondoEquipado.imagenUrl} style={styles.accesorioFondo} />
+            )}
+            <Text style={styles.avatarBaseEmoji}>{avatarBase}</Text>
+            {ropaEquipada && (
+              <Image source={ropaEquipada.imagenUrl} style={styles.accesorioRopa} />
+            )}
+            {lentesEquipados && (
+              <Image source={lentesEquipados.imagenUrl} style={styles.accesorioLentes} />
+            )}
+            {sombreroEquipado && (
+             <Image source={sombreroEquipado.imagenUrl} style={styles.accesorioSombrero} />
+            )}
+            <View style={styles.avatarEditBadge}>
+              <Ionicons name="pencil" size={16} color="#4B0082" />
+            </View>
+          </View>
+        </TouchableOpacity>
 
         <View style={styles.questionContainer}>
           <Text style={styles.questionText}>¿Qué aventura tendremos hoy?</Text>
@@ -320,6 +376,72 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#4B0082',
     fontWeight: '600',
+  },
+  avatarButton: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  avatarCanvas: {
+    width: 150, // Más pequeño para el dashboard
+    height: 150,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    borderRadius: 75, // La mitad del width/height
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    borderWidth: 3,
+    borderColor: '#FFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  avatarBaseEmoji: {
+    fontSize: 75, // Más pequeño
+  },
+  accesorioFondo: {
+    ...StyleSheet.absoluteFillObject,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    zIndex: 0,
+  },
+  accesorioRopa: {
+    position: 'absolute',
+    width: 170, // 50% del canvas
+    height: 70,
+    bottom: -20,
+    resizeMode: 'contain',
+    zIndex: 2,
+  },
+  accesorioLentes: {
+    position: 'absolute',
+    width: 100, // 50% del canvas
+    height: 30,
+    top: 60,
+    resizeMode: 'contain',
+    zIndex: 3,
+  },
+  accesorioSombrero: {
+    position: 'absolute',
+    width: 120, // 50% del canvas
+    height: 60,
+    top: 15,
+    resizeMode: 'contain',
+    zIndex: 4,
+  },
+  avatarEditBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#FFF',
+    borderRadius: 15,
+    padding: 6,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
   },
   errorContainer: {
     flex: 1,
