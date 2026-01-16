@@ -1,38 +1,58 @@
-// app/(parent)/crearMomento.tsx
-
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-
-interface BuenMomento {
-  id: string;
-  fecha: string;
-  mensaje: string;
-  monedas: number;
-  visto: boolean;
-}
+import { API_URL } from '../../../src/config/api';
 
 export default function CrearMomentoScreen() {
   const router = useRouter();
   const [mensaje, setMensaje] = useState('');
   const [monedas, setMonedas] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Estados para manejar selección de hijo
+  const [children, setChildren] = useState<any[]>([]);
+  const [selectedChildId, setSelectedChildId] = useState<number | null>(null);
+
+  // 1. Cargar la lista de hijos al iniciar
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const childrenJson = await AsyncStorage.getItem('childrenData');
+        if (childrenJson) {
+          const loadedChildren = JSON.parse(childrenJson);
+          setChildren(loadedChildren);
+          // Si hay hijos, seleccionamos el primero por defecto
+          if (loadedChildren.length > 0) {
+            setSelectedChildId(loadedChildren[0].id);
+          }
+        }
+      } catch (error) {
+        console.error("Error cargando hijos", error);
+      }
+    };
+    loadData();
+  }, []);
 
   const handleEnviar = async () => {
+    // Validaciones
+    if (!selectedChildId) {
+      Alert.alert('Error', 'No se ha seleccionado un niño destinatario.');
+      return;
+    }
     if (!mensaje.trim()) {
       Alert.alert('Error', 'Escribe un mensaje bonito para tu hijo/a.');
       return;
@@ -46,31 +66,41 @@ export default function CrearMomentoScreen() {
 
     setIsLoading(true);
 
-    const nuevoMomento: BuenMomento = {
-      id: Date.now().toString(),
-      fecha: new Date().toISOString(),
-      mensaje: mensaje,
-      monedas: monedasNum,
-      visto: false, // El niño no lo ha visto
-    };
-
     try {
-      const momentosStr = await AsyncStorage.getItem('buenosMomentos');
-      const momentos: BuenMomento[] = momentosStr ? JSON.parse(momentosStr) : [];
-      
-      momentos.push(nuevoMomento);
+      // Obtener ID del padre de la sesión
+      const parentSession = await AsyncStorage.getItem('parentSession');
+      if (!parentSession) throw new Error("No hay sesión de padre");
+      const parentData = JSON.parse(parentSession);
 
-      await AsyncStorage.setItem('buenosMomentos', JSON.stringify(momentos));
+      console.log(`Enviando mensaje a ${API_URL}/mensajes`);
 
-      Alert.alert(
-        '¡Mensaje Enviado!',
-        'Tu hijo/a recibirá tu mensaje y sus monedas 🪙.',
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
+      // 2. PETICIÓN AL BACKEND
+      const response = await fetch(`${API_URL}/mensajes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          padre_id: parentData.id_pad,
+          nino_id: selectedChildId,
+          mensaje: mensaje,
+          monedas_regalo: monedasNum
+        })
+      });
 
-    } catch (error) {
-      console.error('Error guardando momento:', error);
-      Alert.alert('Error', 'No se pudo enviar el mensaje.');
+      const data = await response.json();
+
+      if (data.success) {
+        Alert.alert(
+          '¡Mensaje Enviado! 💌',
+          'Tu hijo/a recibirá tu mensaje y sus monedas.',
+          [{ text: 'Genial', onPress: () => router.back() }]
+        );
+      } else {
+        throw new Error(data.message);
+      }
+
+    } catch (error: any) {
+      console.error('Error enviando mensaje:', error);
+      Alert.alert('Error', error.message || 'No se pudo conectar con el servidor.');
     } finally {
       setIsLoading(false);
     }
@@ -92,6 +122,30 @@ export default function CrearMomentoScreen() {
           </View>
 
           <View style={styles.form}>
+            
+            {/* SELECTOR DE HIJO (Si hay más de uno) */}
+            <Text style={styles.label}>¿Para quién es el mensaje?</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom: 20}}>
+              {children.map((child) => (
+                <TouchableOpacity 
+                  key={child.id}
+                  style={[
+                    styles.childSelector, 
+                    selectedChildId === child.id && styles.childSelectorActive
+                  ]}
+                  onPress={() => setSelectedChildId(child.id)}
+                >
+                  <Text style={{fontSize: 20, marginRight: 5}}>{child.avatar_emoji}</Text>
+                  <Text style={[
+                    styles.childSelectorText, 
+                    selectedChildId === child.id && styles.childSelectorTextActive
+                  ]}>
+                    {child.nombre}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
             <Text style={styles.label}>Mensaje de felicitación</Text>
             <TextInput
               style={styles.textInputLarge}
@@ -163,13 +217,37 @@ const styles = StyleSheet.create({
   },
   form: {
     paddingHorizontal: 20,
-    marginTop: 20,
+    marginTop: 10,
   },
   label: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
     marginBottom: 12,
+  },
+  // Estilos nuevos para el selector de hijos
+  childSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginRight: 10,
+    borderWidth: 2,
+    borderColor: 'transparent'
+  },
+  childSelectorActive: {
+    backgroundColor: '#FFF',
+    borderColor: '#4B0082',
+  },
+  childSelectorText: {
+    color: '#555',
+    fontWeight: '600'
+  },
+  childSelectorTextActive: {
+    color: '#4B0082',
+    fontWeight: 'bold'
   },
   textInputLarge: {
     backgroundColor: '#FFF',
@@ -221,6 +299,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 5,
+    marginBottom: 40
   },
   sendButtonDisabled: {
     backgroundColor: '#9575CD',

@@ -4,11 +4,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 interface EntradaDiario {
@@ -235,10 +235,6 @@ export default function ResumenEmocionalScreen() {
           </View>
         </View>
 
-        {/* ----- SECCIÓN ELIMINADA ----- */}
-        {/* Ya no mostramos la lista de entradas recientes */}
-        {/* Tampoco mostramos el botón de "Empezar ahora" aquí */}
-        
         {entradas.length === 0 && (
            <View style={estilos.sinEntradas}>
              <Text style={estilos.sinEntradasEmoji}>📝</Text>
@@ -257,8 +253,6 @@ export default function ResumenEmocionalScreen() {
         <View style={estilos.espaciadoInferior} />
       </ScrollView>
 
-      {/* ----- MODAL ELIMINADO ----- */}
-      {/* Ya no hay modal de detalle */}
 
     </LinearGradient>
   );

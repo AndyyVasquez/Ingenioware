@@ -71,6 +71,7 @@ export default function ChildDashboardScreen() {
       descripcion: 'Ritmos del corazón',
       nombre_icono: 'musical-notes',
       color: '#FFD93D',
+      ruta: '/canciones',
     },
     {
       id_categoria: 4,
@@ -308,7 +309,7 @@ useFocusEffect(
         <TouchableOpacity 
           style={styles.diarioCard}
           activeOpacity={0.8}
-          onPress={() => router.push('./seleccionEmociones')}
+          onPress={() => router.push('./diario')}
         >
           <LinearGradient
             colors={['#FFE4B5', '#FFDAB9']}
@@ -420,13 +421,13 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   avatarBaseEmoji: {
-    fontSize: 75, // Más pequeño
+    fontSize: 80, // Más pequeño
   },
   accesorioFondo: {
     ...StyleSheet.absoluteFillObject,
     width: 150,
     height: 150,
-    borderRadius: 75,
+    borderRadius: 80,
     zIndex: 0,
   },
   accesorioRopa: {

@@ -13,12 +13,11 @@ import {
 } from 'react-native';
 import AnimatedStar from './AnimatedStar';
 
-// Interface para unificar los perfiles
 interface Profile {
   id: string;
   type: 'parent' | 'child';
   name: string;
-  avatar: string; // Puede ser un emoji '🦁' o un nombre de icono 'person'
+  avatar: string;
 }
 
 export default function ProfileSelectorScreen() {
@@ -84,8 +83,7 @@ export default function ProfileSelectorScreen() {
   };
 
   const handleProfileClick = (profile: Profile) => {
-    // Navegamos a la pantalla de PIN, pasando el perfil que se tocó
-    // pinVerification ahora debe manejar esta lógica
+
     router.push(
       `/pinVerification?profileId=${profile.id}&profileType=${profile.type}&name=${profile.name}`
     );
@@ -143,7 +141,7 @@ const handleNukeStorage = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Esta es la "bomba atómica". Borra todas las claves.
+              // Borra todas las claves.
               await AsyncStorage.clear();
               
               console.log('¡Almacenamiento 100% limpio!');
@@ -263,7 +261,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 80,
     paddingHorizontal: 20,
-    justifyContent: 'center', // Centramos el contenido
+    justifyContent: 'center', 
   },
   loadingContainer: {
     flex: 1,
@@ -292,13 +290,13 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   question: {
-    fontSize: 22, // Más grande
+    fontSize: 22, 
     color: '#333',
     fontWeight: '600',
   },
   cardsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between', // Centramos los perfiles
+    justifyContent: 'space-between', 
     flexWrap: 'wrap', // Para que bajen si no caben
     paddingHorizontal: 10,
     
@@ -323,7 +321,7 @@ const styles = StyleSheet.create({
   },
   loginCard: {
     backgroundColor: '#F5E6D3',
-    borderStyle: 'solid', // Borde sólido en lugar de punteado
+    borderStyle: 'solid', 
     borderWidth: 2,
     borderColor: '#4B0082',
     elevation: 0,
@@ -350,7 +348,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   parentIconCircle: {
-    backgroundColor: '#C0D9E5', // Un color diferente para el padre
+    backgroundColor: '#C0D9E5', 
   },
   addIconCircle: {
     backgroundColor: 'transparent',
@@ -363,7 +361,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
   },
-  lockBadge: { // Reemplaza 'activeBadge'
+  lockBadge: { 
     position: 'absolute',
     top: 10,
     right: 10,

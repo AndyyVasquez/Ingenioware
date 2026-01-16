@@ -184,12 +184,12 @@ export default function RegistroPadres() {
       ap_pad: apP,
       am_pad: amP,
       correo_pad: email,
-      token: 'fake-jwt-token-12345', // Token real vendrá del backend
+      token: 'fake-jwt-token-12345', 
       tiene_ninos: true,
     };
 
     const datosNuevoNino = {
-      id_nino: 1, // Este ID vendría de tu backend
+      id_nino: 1, 
       nombre_completo: `${nomN} ${apN} ${amN}`,
       nom_nino: nomN,
       ap_nino: apN,
@@ -197,7 +197,7 @@ export default function RegistroPadres() {
       edad_nino: parseInt(edadN),
       fec_nac_nino: fecnacN,
       sexo_nino: sexoN,
-      avatar_emoji: '🦁', // Avatar por defecto
+      avatar_emoji: '🦁', 
     };
 
     // 2. Ejecutar el guardado en AsyncStorage
@@ -527,7 +527,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 24,
     fontWeight: '600',
-    color: 'transparent', // <-- Para ocultar el número (bug de secureTextEntry)
+    color: 'transparent', 
     borderWidth: 2,
     borderColor: 'transparent',
   },

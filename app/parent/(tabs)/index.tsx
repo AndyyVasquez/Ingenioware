@@ -14,7 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useParentData } from '../parentDataContext'; // Ajusta la ruta
+import { useParentData } from '../parentDataContext';
 
 export default function ParentDashboardScreen() {
   const router = useRouter();
@@ -33,32 +33,36 @@ export default function ParentDashboardScreen() {
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Con mi sesión',
-          onPress: () => {
+          text: 'Continuar',
+          onPress: async () => {
             if (childData) {
-              const tempChildSession = {
-                id_nino: childData.id_nino,
-                nombre_completo: childData.nombre_completo,
+
+              const sessionParaNiño = {
+                id: childData.id,              
+                nombre: childData.nombre,     
                 avatar_emoji: childData.avatar_emoji,
-                loginTime: new Date().toISOString(),
-                parentAccess: true,
+                monedas: childData.monedas,    
+                padre_id: childData.padre_id
               };
-              AsyncStorage.setItem('childSession', JSON.stringify(tempChildSession))
-                .then(() => {
-                  router.push('/dashboardN'); // Asumiendo que esta es la ruta
-                })
-                .catch(error => {
-                  console.error('Error creando sesión temporal:', error);
-                  Alert.alert('Error', 'No se pudo acceder al perfil del niño');
-                });
+
+              try {
+                // Guardamos con la llave CORRECTA: 'currentChild'
+                await AsyncStorage.setItem('currentChild', JSON.stringify(sessionParaNiño));
+                console.log("Sesión de niño guardada:", sessionParaNiño);
+                
+                router.push('/dashboardN'); // Vamos al dashboard del niño
+              } catch (error) {
+                console.error('Error creando sesión temporal:', error);
+                Alert.alert('Error', 'No se pudo acceder al perfil.');
+              }
             } else {
-              Alert.alert('Error', 'No se encontraron datos del niño');
+              Alert.alert('Error', 'No se encontraron datos del niño. Intenta recargar.');
             }
           },
         },
         {
-          text: 'Con PIN del niño',
-          onPress: () => router.push('/pinVerification'), // Asumiendo ruta
+          text: '',
+          onPress: () => router.push('/pinVerification'),
         },
       ]
     );
@@ -73,21 +77,20 @@ const handleLogout = async () => {
         {
           text: 'Cerrar sesión',
           style: 'destructive',
-          onPress: async () => {
-            try {
+onPress: async () => {
+  try {
+    await AsyncStorage.removeItem('parentSession');
+    await AsyncStorage.removeItem('hasParentAccount');
+    await AsyncStorage.removeItem('parentPin');
+    await AsyncStorage.removeItem('hasChildren');
+    await AsyncStorage.removeItem('childrenData');
 
-              await AsyncStorage.removeItem('parentSession');
-              await AsyncStorage.removeItem('childSession');
-              await AsyncStorage.removeItem('hasParentAccount'); 
-              await AsyncStorage.removeItem('hasChildren');
-
-
-              console.log('Sesiones de padre e hijo cerradas.');
-              router.replace('/'); 
-            } catch (error) {
-              console.error('Error cerrando sesión:', error);
-            }
-          },
+    console.log('Sesión cerrada correctamente');
+    router.replace('/'); 
+  } catch (error) {
+    console.error('Error cerrando sesión:', error);
+  }
+},
         },
       ]
     );
@@ -160,7 +163,6 @@ const handleLogout = async () => {
           </View>
         )}
 
-        {/* Perfil del Niño (Simplificado) */}
         <View style={styles.childCard}>
           <View style={styles.childHeader}>
             <View style={styles.childInfo}>
@@ -171,25 +173,27 @@ const handleLogout = async () => {
               </View>
               <View>
                 <Text style={styles.childName}>
-                  {childData?.nombre_completo || 'Nombre del Niño'}
+                  {childData?.nombre || 'Nombre del Niño'}
                 </Text>
+
                 <Text style={styles.childAge}>
-                  {childData?.edad_nino ? `${childData.edad_nino} años` : '8 años'}
+                  {childData?.fecha_nacimiento 
+                    ? `${new Date().getFullYear() - new Date(childData.fecha_nacimiento).getFullYear()} años` 
+                    : 'Edad no definida'}
                 </Text>
               </View>
             </View>
           </View>
-
-          {/* <TouchableOpacity 
+          <TouchableOpacity 
             style={styles.accessChildButton}
-            onPress={handleAccessChildProfile}
+            onPress={handleAccessChildProfile} // <--- Esto es lo que guarda la sesión
             activeOpacity={0.8}
           >
             <Ionicons name="person-outline" size={20} color="#FFF" />
-            <Text style={styles.accessChildButtonText}>Ver perfil del niño</Text>
+            <Text style={styles.accessChildButtonText}>Acceder al perfil</Text>
             <Ionicons name="arrow-forward" size={20} color="#FFF" />
-          </TouchableOpacity> */}
-        </View>
+          </TouchableOpacity>
+          </View>
 
         {/* Acciones Rápidas */}
         <View style={styles.section}>
@@ -218,7 +222,7 @@ const handleLogout = async () => {
 
             <TouchableOpacity 
               style={styles.actionCard}
-              onPress={() => Alert.alert('Calendario', 'Próximamente disponible')}
+              onPress={() => router.push('./calendario')}
             >
               <View style={styles.actionIcon}>
                 <Ionicons name="calendar-outline" size={32} color="#4B0082" />
@@ -228,7 +232,7 @@ const handleLogout = async () => {
 
             <TouchableOpacity 
               style={styles.actionCard}
-              onPress={() => Alert.alert('Comunidad', 'Próximamente disponible')}
+            onPress={() => router.push('./comunidad')}
             >
               <View style={styles.actionIcon}>
                 <Ionicons name="people-outline" size={32} color="#4B0082" />
@@ -244,7 +248,6 @@ const handleLogout = async () => {
   );
 }
 
-// Estilos (Modifiqué y añadí algunos)
 const styles = StyleSheet.create({
   container: {
     flex: 1,

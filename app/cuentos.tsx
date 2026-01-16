@@ -1,84 +1,42 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
+import { API_URL } from '../src/config/api';
 
-// Datos de ejemplo de cuentos
-const cuentos = [
-  {
-    id: 1,
-    titulo: 'El León Valiente',
-    valor: 'Valentía',
-    emoji: '🦁',
-    color: '#FFB84D',
-    duracion: '8 min',
-    completado: false,
-    nuevo: true,
-  },
-  {
-    id: 2,
-    titulo: 'La Hormiga Trabajadora',
-    valor: 'Responsabilidad',
-    emoji: '🐜',
-    color: '#FF6B6B',
-    duracion: '6 min',
-    completado: true,
-    nuevo: false,
-  },
-  {
-    id: 3,
-    titulo: 'El Zorro Honesto',
-    valor: 'Honestidad',
-    emoji: '🦊',
-    color: '#4ECDC4',
-    duracion: '7 min',
-    completado: false,
-    nuevo: false,
-  },
-  {
-    id: 4,
-    titulo: 'Los Amigos del Bosque',
-    valor: 'Amistad',
-    emoji: '🐻',
-    color: '#95E1D3',
-    duracion: '10 min',
-    completado: false,
-    nuevo: true,
-  },
-  {
-    id: 5,
-    titulo: 'La Tortuga Paciente',
-    valor: 'Paciencia',
-    emoji: '🐢',
-    color: '#A06CD5',
-    duracion: '5 min',
-    completado: false,
-    nuevo: false,
-  },
-  {
-    id: 6,
-    titulo: 'El Conejo Generoso',
-    valor: 'Generosidad',
-    emoji: '🐰',
-    color: '#FF8FAB',
-    duracion: '9 min',
-    completado: true,
-    nuevo: false,
-  },
-];
+// Definimos la interfaz del cuento
+interface Cuento {
+  id: number;
+  titulo: string;
+  sinopsis: string;
+  valor_id: number;
+  nombre_valor: string; // Viene del JOIN en backend
+  color_hex: string;    // Viene del JOIN en backend
+  portada_url: string;
+  contenido_url: string;
+  // Campos calculados o por defecto
+  emoji: string;
+  duracion: string;
+  nuevo: boolean;
+  completado: boolean;
+  color: string;
+  valor: string;
+}
 
 const categorias = [
   'Todos',
   'Valentía',
   'Honestidad',
-  'Amistad',
+  'Empatía',
   'Responsabilidad',
   'Generosidad',
 ];
@@ -86,15 +44,63 @@ const categorias = [
 export default function CuentosScreen() {
   const router = useRouter();
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('Todos');
+  const [cuentos, setCuentos] = useState<Cuento[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchCuentos();
+  }, []);
+
+  const fetchCuentos = async () => {
+    try {
+      const response = await fetch(`${API_URL}/cuentos`);
+      const data = await response.json();
+      
+      if (data.success) {
+        // Transformamos los datos del backend al formato que usa la UI
+        const cuentosFormateados = data.cuentos.map((c: any) => ({
+          ...c,
+          // Mapeamos el color que viene de BD o usamos uno por defecto
+          color: c.color_hex || '#FFB84D', 
+          // Mapeamos el nombre del valor
+          valor: c.nombre_valor,
+          // Asignamos emoji según el valor (puedes mejorarlo guardando emoji en BD)
+          emoji: getEmojiForValor(c.nombre_valor),
+          duracion: '5 min', // Valor por defecto
+          nuevo: Math.random() < 0.3,
+          completado: false 
+        }));
+        setCuentos(cuentosFormateados);
+      }
+    } catch (error) {
+      console.error("Error cargando cuentos:", error);
+      Alert.alert("Error", "No se pudieron cargar los cuentos");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getEmojiForValor = (valor: string) => {
+    switch(valor?.toLowerCase()) {
+      case 'valentía': return '🦁';
+      case 'honestidad': return '🦊';
+      case 'empatía': return '🐻';
+      case 'responsabilidad': return '🐜';
+      case 'generosidad': return '🐰';
+      default: return '📖';
+    }
+  };
 
   const cuentosFiltrados =
     categoriaSeleccionada === 'Todos'
       ? cuentos
       : cuentos.filter((cuento) => cuento.valor === categoriaSeleccionada);
 
-  const handleCuentoPress = (cuento: typeof cuentos[0]) => {
-    // Navegar al lector del cuento con el ID
-    router.push(`/lectorCuento?id=${cuento.id}`);
+  const handleCuentoPress = (cuento: Cuento) => {
+    router.push({
+      pathname: '/lectorCuento',
+      params: { cuentoData: JSON.stringify(cuento) }
+    });
   };
 
   return (
@@ -141,60 +147,71 @@ export default function CuentosScreen() {
       </ScrollView>
 
       {/* Grid de Cuentos */}
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.cuentosGrid}
-      >
-        {cuentosFiltrados.map((cuento) => (
-          <TouchableOpacity
-            key={cuento.id}
-            style={[styles.cuentoCard, { backgroundColor: cuento.color }]}
-            activeOpacity={0.8}
-            onPress={() => handleCuentoPress(cuento)}
-          >
-            {/* Badges */}
-            <View style={styles.badgesContainer}>
-              {cuento.nuevo && (
-                <View style={styles.badgeNuevo}>
-                  <Text style={styles.badgeText}>¡Nuevo!</Text>
+      {isLoading ? (
+        <View style={{flex:1, justifyContent:'center', alignItems:'center'}}>
+            <ActivityIndicator size="large" color="#4B0082" />
+            <Text>Cargando biblioteca...</Text>
+        </View>
+      ) : (
+        <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.cuentosGrid}
+        >
+            {cuentosFiltrados.length > 0 ? cuentosFiltrados.map((cuento) => (
+            <TouchableOpacity
+                key={cuento.id}
+                style={[styles.cuentoCard, { backgroundColor: cuento.color }]}
+                activeOpacity={0.8}
+                onPress={() => handleCuentoPress(cuento)}
+            >
+                {/* Badges */}
+                <View style={styles.badgesContainer}>
+                {cuento.nuevo && (
+                    <View style={styles.badgeNuevo}>
+                    <Text style={styles.badgeText}>¡Nuevo!</Text>
+                    </View>
+                )}
+                {cuento.completado && (
+                    <View style={styles.badgeCompletado}>
+                    <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
+                    </View>
+                )}
                 </View>
-              )}
-              {cuento.completado && (
-                <View style={styles.badgeCompletado}>
-                  <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
+
+                {/* Emoji del cuento */}
+                <View style={styles.emojiContainer}>
+                <Text style={styles.emoji}>{cuento.emoji}</Text>
                 </View>
-              )}
-            </View>
 
-            {/* Emoji del cuento */}
-            <View style={styles.emojiContainer}>
-              <Text style={styles.emoji}>{cuento.emoji}</Text>
-            </View>
-
-            {/* Info del cuento */}
-            <View style={styles.cuentoInfo}>
-              <Text style={styles.cuentoTitulo}>{cuento.titulo}</Text>
-              <View style={styles.cuentoMeta}>
-                <View style={styles.valorTag}>
-                  <Ionicons name="heart" size={14} color="#FFF" />
-                  <Text style={styles.valorText}>{cuento.valor}</Text>
+                {/* Info del cuento */}
+                <View style={styles.cuentoInfo}>
+                <Text style={styles.cuentoTitulo}>{cuento.titulo}</Text>
+                <View style={styles.cuentoMeta}>
+                    <View style={styles.valorTag}>
+                    <Ionicons name="heart" size={14} color="#FFF" />
+                    <Text style={styles.valorText}>{cuento.valor}</Text>
+                    </View>
+                    <View style={styles.duracionTag}>
+                    <Ionicons name="time-outline" size={14} color="#FFF" />
+                    <Text style={styles.duracionText}>{cuento.duracion}</Text>
+                    </View>
                 </View>
-                <View style={styles.duracionTag}>
-                  <Ionicons name="time-outline" size={14} color="#FFF" />
-                  <Text style={styles.duracionText}>{cuento.duracion}</Text>
                 </View>
-              </View>
-            </View>
 
-            {/* Botón de play */}
-            <View style={styles.playButton}>
-              <Ionicons name="play" size={24} color="#FFF" />
-            </View>
-          </TouchableOpacity>
-        ))}
+                {/* Botón de play */}
+                <View style={styles.playButton}>
+                <Ionicons name="play" size={24} color="#FFF" />
+                </View>
+            </TouchableOpacity>
+            )) : (
+                <Text style={{textAlign:'center', marginTop: 50, color:'#666'}}>
+                    No hay cuentos en esta categoría.
+                </Text>
+            )}
 
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
+            <View style={styles.bottomSpacer} />
+        </ScrollView>
+      )}
     </LinearGradient>
   );
 }

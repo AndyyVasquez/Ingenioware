@@ -4,6 +4,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  ActivityIndicator // Importamos ActivityIndicator para el loading
+  ,
+
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -12,8 +15,10 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
+
+import { API_URL } from '../src/config/api';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -23,7 +28,6 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async () => {
-    // Validaciones básicas
     if (!email || !password) {
       Alert.alert('Error', 'Por favor completa todos los campos');
       return;
@@ -32,37 +36,62 @@ export default function LoginScreen() {
     setIsLoading(true);
     
     try {
-      // Aquí irá tu lógica de autenticación real con el backend
-      // Por ahora simularemos un login exitoso
+      console.log(`Intentando conectar a: ${API_URL}/login`);
+
+      const response = await fetch(`${API_URL}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email.trim(), 
+          password: password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Error al iniciar sesión');
+      }
       
-      // Simular delay de red
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Datos simulados del padre (esto vendrá de tu API)
-      const datosSimulados = {
-        id_pad: 1,
-        nombre_completo: 'Juan Pérez García',
-        correo_pad: email,
-        token: 'fake-jwt-token-12345', // Este será un token real de tu backend
-        tiene_ninos: true,
+      console.log('Login exitoso:', data.user.nombre);
+
+      // --- 2. GUARDAR DATOS REALES EN ASYNC STORAGE ---
+  
+      const sessionData = {
+        id_pad: data.user.id_pad,
+        nombre_completo: `${data.user.nombre} ${data.user.apellidos}`.trim(),
+        email: data.user.email,
+        token: data.token,
+        tiene_ninos: data.user.hijos && data.user.hijos.length > 0
       };
       
-      // Guardar sesión del padre
-      await AsyncStorage.setItem('parentSession', JSON.stringify(datosSimulados));
+      // Guardamos claves individuales
+      await AsyncStorage.setItem('parentSession', JSON.stringify(sessionData));
       await AsyncStorage.setItem('hasParentAccount', 'true');
-      await AsyncStorage.setItem('parentPin', '1234');
+      await AsyncStorage.setItem('parentPin', String(data.user.pin)); // Guardamos el PIN real
       
-      // Importante: También guardar que tiene niños registrados
-      await AsyncStorage.setItem('hasChildren', datosSimulados.tiene_ninos ? 'true' : 'false');
+      // Guardamos si tiene niños
+      await AsyncStorage.setItem('hasChildren', sessionData.tiene_ninos ? 'true' : 'false');
+
+      // ¡IMPORTANTE! Guardamos la lista real de hijos para usarla en el selector de perfiles
+      if (sessionData.tiene_ninos) {
+        await AsyncStorage.setItem('childrenData', JSON.stringify(data.user.hijos));
+      } else {
+        await AsyncStorage.setItem('childrenData', JSON.stringify([]));
+      }
       
-      console.log('Sesión guardada exitosamente');
+      console.log('Datos guardados en el dispositivo');
       
-      // Navegar al dashboard del padre
-     router.replace('./parent/(tabs)/');
+      // --- 3. NAVEGACIÓN ---
+      // Si tiene niños, lo ideal sería ir a seleccionar perfil, 
+      // pero respetando el flujo actual, al dashboard:
+      router.replace('./parent/(tabs)/');
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error en login:', error);
-      Alert.alert('Error', 'No se pudo iniciar sesión. Intenta de nuevo.');
+      Alert.alert('Error de Conexión', error.message || 'Verifica tu conexión a internet o la IP del servidor.');
     } finally {
       setIsLoading(false);
     }
@@ -144,7 +173,10 @@ export default function LoginScreen() {
               disabled={isLoading}
             >
               {isLoading ? (
-                <Text style={styles.loginButtonText}>Iniciando sesión...</Text>
+                <>
+                  <ActivityIndicator size="small" color="#FFF" />
+                  <Text style={styles.loginButtonText}> Conectando...</Text>
+                </>
               ) : (
                 <>
                   <Text style={styles.loginButtonText}>Iniciar Sesión</Text>

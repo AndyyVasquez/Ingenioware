@@ -1,9 +1,7 @@
-// app/data/temasConversacion.ts
-
 export interface Tema {
   id: string;
   titulo: string;
-  icono: any; // Opcional, puedes usarlo luego
+  icono: any; 
   descripcion: string;
   pregunta: string;
 }

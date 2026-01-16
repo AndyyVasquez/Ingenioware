@@ -1,265 +1,312 @@
-// app/juegos.tsx
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // <--- Importar AsyncStorage
-import { useIsFocused } from '@react-navigation/native'; // <--- Importar useIsFocused
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react'; // <--- Importar useState y useEffect
+import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
+import { API_URL } from '../src/config/api';
 
-// Esta es la plantilla o "blueprint" de tus niveles
-const nivelesBase = [
-  {
-    id: 'honestidad',
-    titulo: 'La Cueva de la Honestidad',
-    icono: 'shield-checkmark',
-    color: '#4ECDC4',
-  },
-  {
-    id: 'empatia',
-    titulo: 'El Puente de la Empatía',
-    icono: 'heart',
-    color: '#FF6B6B',
-  },
-  {
-    id: 'generosidad',
-    titulo: 'El Árbol de la Generosidad',
-    icono: 'gift',
-    color: '#FFD93D',
-  },
-  {
-    id: 'responsabilidad',
-    titulo: 'La Montaña de la Responsabilidad',
-    icono: 'rocket',
-    color: '#A06CD5',
-  },
-];
+const { width } = Dimensions.get('window');
 
-// Esta interface ayuda a TypeScript
-type NivelDinamico = typeof nivelesBase[0] & {
-  desbloqueado: boolean;
-};
-
-export default function JuegosScreen() {
+export default function JuegosMapScreen() {
   const router = useRouter();
-  const [nivelesDinamicos, setNivelesDinamicos] = useState<NivelDinamico[]>([]);
-  const [cargando, setCargando] = useState(true);
-  
-  // useIsFocused nos dice si la pantalla está visible
-  const isFocused = useIsFocused();
+  const [niveles, setNiveles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Usamos useEffect para cargar el progreso
-  useEffect(() => {
-    // Solo cargamos si la pantalla está visible
-    if (isFocused) {
-      cargarProgreso();
-    }
-  }, [isFocused]); // Se ejecuta cada vez que volvemos a esta pantalla
-
-  const cargarProgreso = async () => {
-    setCargando(true);
+  const cargarMapa = async () => {
     try {
-      const progresoStr = await AsyncStorage.getItem('progresoJuegos');
-      const juegosCompletados: string[] = progresoStr ? JSON.parse(progresoStr) : [];
-      
-      const nuevosNiveles = nivelesBase.map((nivel, index) => {
-        let desbloqueado = false;
-        
-        if (index === 0) {
-          // El primer nivel SIEMPRE está desbloqueado
-          desbloqueado = true;
-        } else {
-          // Checa si el ID del nivel ANTERIOR está en la lista de completados
-          const nivelAnterior = nivelesBase[index - 1];
-          if (juegosCompletados.includes(nivelAnterior.id)) {
-            desbloqueado = true;
-          }
-        }
-        
-        return {
-          ...nivel,
-          desbloqueado: desbloqueado,
-        };
-      });
-      
-      setNivelesDinamicos(nuevosNiveles);
+      const childJson = await AsyncStorage.getItem('currentChild');
+      if (!childJson) return;
+      const child = JSON.parse(childJson);
+
+      console.log("Cargando mapa para niño:", child.id); // Debug
+
+      const response = await fetch(`${API_URL}/juegos/mapa/${child.id}`);
+      const data = await response.json();
+
+      if (data.success) {
+        console.log("Niveles cargados:", data.mapa.length); // Debug
+        setNiveles(data.mapa);
+      }
     } catch (error) {
-      console.error('Error cargando progreso:', error);
+      console.error("Error cargando mapa:", error);
     } finally {
-      setCargando(false);
+      setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  const handlePressNivel = (nivel: NivelDinamico) => {
-    if (!nivel.desbloqueado) {
-      Alert.alert('¡Bloqueado!', '¡Aún no llegas aquí! Completa el nivel anterior.');
+  useEffect(() => {
+    cargarMapa();
+  }, []);
+
+  const handleLevelPress = (nivel: any) => {
+    if (nivel.bloqueado) {
+      Alert.alert("🔒 Nivel Bloqueado", "¡Completa el nivel anterior para avanzar!");
       return;
     }
-    router.push(`/juegoInteractivo?valor=${nivel.id}`);
+    
+    router.push({
+      pathname: '/juegoInteractivo',
+      params: { 
+        valorId: nivel.id, 
+        titulo: nivel.titulo,
+        color: nivel.color 
+      }
+    });
   };
 
-  if (cargando) {
-    return (
-      <LinearGradient colors={['#B8D4E0', '#FAD4C0']} style={styles.loadingContenedor}>
-        <ActivityIndicator size="large" color="#4B0082" />
-      </LinearGradient>
-    );
-  }
-
   return (
-    <LinearGradient colors={['#B8D4E0', '#FAD4C0']} style={styles.contenedor}>
-      <View style={styles.encabezado}>
-        <TouchableOpacity style={styles.botonVolver} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+    // Usamos Gradiente para simular CIELO (Azul) y TIERRA (Verde) al fondo
+    <LinearGradient colors={['#87CEEB', '#87CEEB', '#90EE90']} style={styles.container}>
+      
+      {/* Nubes Decorativas (Fijas) */}
+      <View style={{position: 'absolute', top: 100, left: 20}}><Ionicons name="cloud" size={60} color="rgba(255,255,255,0.8)" /></View>
+      <View style={{position: 'absolute', top: 150, right: -20}}><Ionicons name="cloud" size={80} color="rgba(255,255,255,0.6)" /></View>
+      <View style={{position: 'absolute', top: 300, left: -10}}><Ionicons name="cloud" size={50} color="rgba(255,255,255,0.7)" /></View>
+
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={28} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.titulo}>Isla de Valores</Text>
-        <View style={styles.espacioVacio} />
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>Mundo de Valores 🌎</Text>
+        </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContenedor}>
-        <Text style={styles.subtitulo}>
-          ¡Sigue el camino y aprende con Valo!
-        </Text>
-
-        {nivelesDinamicos.map((nivel, index) => (
-          <React.Fragment key={nivel.id}>
-            {index > 0 && (
-              <View style={styles.caminoConector} />
-            )}
-
-            <TouchableOpacity
-              style={[
-                styles.tarjetaNivel,
-                !nivel.desbloqueado && styles.tarjetaBloqueada,
-              ]}
-              onPress={() => handlePressNivel(nivel)}
-              activeOpacity={0.7}
-            >
-              <View
-                style={[
-                  styles.iconoNivel,
-                  { backgroundColor: nivel.desbloqueado ? nivel.color : '#9E9E9E' },
-                ]}
-              >
-                <Ionicons
-                  name={nivel.desbloqueado ? (nivel.icono as any) : 'lock-closed'}
-                  size={32}
-                  color="#FFF"
-                />
+      {loading ? (
+        <ActivityIndicator size="large" color="#FFF" style={{ marginTop: 100 }} />
+      ) : (
+        <ScrollView 
+          contentContainerStyle={styles.mapContainer}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={cargarMapa} tintColor="#FFF"/>}
+        >
+          {/* Castillo Inicio */}
+          <View style={styles.landmarkContainer}>
+              <Text style={{fontSize: 50}}>🏰</Text>
+              <View style={styles.landmarkLabel}>
+                <Text style={styles.landmarkText}>INICIO</Text>
               </View>
-              <View style={styles.infoNivel}>
-                <Text style={styles.tituloNivel}>{nivel.titulo}</Text>
-                <Text style={styles.descripcionNivel}>
-                  {nivel.desbloqueado
-                    ? '¡Jugar ahora!'
-                    : 'Bloqueado'}
-                </Text>
+          </View>
+
+          {/* Camino Conector Inicial */}
+          {niveles.length > 0 && <View style={styles.pathVertical} />}
+
+          {/* Lista de Niveles */}
+          {niveles.length === 0 ? (
+             <Text style={{textAlign: 'center', color: '#FFF', fontSize: 18, marginTop: 20}}>
+                No hay niveles disponibles. {"\n"} 
+             </Text>
+          ) : (
+             niveles.map((nivel: any, index) => {
+                // Zig-Zag Logic
+                const isLeft = index % 2 === 0;
+                const showPath = index < niveles.length - 1;
+
+                return (
+                  <View key={nivel.id} style={{alignItems: 'center', width: '100%'}}>
+                    
+                    {/* Contenedor del Nivel con Desplazamiento */}
+                    <View style={[
+                        styles.levelWrapper, 
+                        { 
+                          alignSelf: isLeft ? 'flex-start' : 'flex-end',
+                          marginLeft: isLeft ? width * 0.15 : 0,
+                          marginRight: isLeft ? 0 : width * 0.15
+                        } 
+                    ]}>
+                      
+                      <TouchableOpacity
+                        style={[
+                          styles.levelNode,
+                          nivel.bloqueado ? styles.levelLocked : styles.levelUnlocked,
+                          !nivel.bloqueado && !nivel.completado && styles.levelCurrent
+                        ]}
+                        onPress={() => handleLevelPress(nivel)}
+                        activeOpacity={0.8}
+                      >
+                        {nivel.completado ? (
+                          <Text style={{fontSize: 30}}>⭐</Text>
+                        ) : nivel.bloqueado ? (
+                          <Ionicons name="lock-closed" size={24} color="rgba(0,0,0,0.3)" />
+                        ) : (
+                          <Text style={styles.levelNumber}>{index + 1}</Text>
+                        )}
+                      </TouchableOpacity>
+
+                      <Text style={styles.levelName}>{nivel.titulo}</Text>
+                    </View>
+
+                    {/* Líneas del Camino (Dots) */}
+                    {showPath && (
+                       <View style={[
+                           styles.pathConnector,
+                           { transform: [{ rotate: isLeft ? '45deg' : '-45deg' }] }
+                       ]}>
+                          <View style={styles.dot} />
+                          <View style={styles.dot} />
+                          <View style={styles.dot} />
+                       </View>
+                    )}
+                  </View>
+                );
+             })
+          )}
+
+          {/* Camino Final */}
+          {niveles.length > 0 && <View style={styles.pathVertical} />}
+
+          {/* Meta Final */}
+          <View style={styles.landmarkContainer}>
+              <Text style={{fontSize: 50}}>🚩</Text>
+              <View style={styles.landmarkLabel}>
+                <Text style={styles.landmarkText}>META</Text>
               </View>
-              {nivel.desbloqueado && (
-                <Ionicons
-                  name="chevron-forward"
-                  size={24}
-                  color="#4B0082"
-                />
-              )}
-            </TouchableOpacity>
-          </React.Fragment>
-        ))}
-      </ScrollView>
+          </View>
+
+        </ScrollView>
+      )}
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  contenedor: {
-    flex: 1,
-  },
-  loadingContenedor: { // <--- NUEVO
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  encabezado: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 60,
+  container: { flex: 1 },
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    paddingTop: 50, 
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    zIndex: 10
   },
-  botonVolver: {
+  backBtn: {
+    backgroundColor: 'rgba(255,255,255,0.3)',
     padding: 8,
+    borderRadius: 12
   },
-  titulo: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#4B0082',
-  },
-  espacioVacio: {
-    width: 40,
-  },
-  scrollContenedor: {
+  titleContainer: {
+    backgroundColor: '#FFEB3B',
     paddingHorizontal: 20,
-    paddingBottom: 40,
-    alignItems: 'center',
-  },
-  subtitulo: {
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 30,
-    textAlign: 'center',
-  },
-  caminoConector: {
-    width: 4,
-    height: 30,
-    backgroundColor: 'rgba(75, 0, 130, 0.3)',
-    borderStyle: 'dashed',
-    borderColor: '#4B0082',
-  },
-  tarjetaNivel: {
-    flexDirection: 'row',
-    backgroundColor: '#FFF',
+    paddingVertical: 8,
     borderRadius: 20,
-    padding: 20,
-    width: '100%',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
+    borderWidth: 3,
+    borderColor: '#F57F17',
+    marginLeft: 20,
     elevation: 5,
+    transform: [{ rotate: '-2deg' }]
   },
-  tarjetaBloqueada: {
-    backgroundColor: '#F5F5F5', // Un gris más suave
-    opacity: 0.8,
+  title: {
+    color: '#E65100',
+    fontWeight: '900',
+    fontSize: 20,
+    textTransform: 'uppercase'
   },
-  iconoNivel: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+  mapContainer: {
+    paddingVertical: 30,
+    alignItems: 'center',
+    paddingBottom: 100
+  },
+  landmarkContainer: {
+    alignItems: 'center',
+    marginBottom: 10
+  },
+  landmarkLabel: {
+    backgroundColor: '#3E2723',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginTop: -5,
+    borderWidth: 2,
+    borderColor: '#8D6E63'
+  },
+  landmarkText: {
+    color: '#FFF',
+    fontWeight: 'bold',
+    fontSize: 12
+  },
+  levelWrapper: {
+    alignItems: 'center',
+    marginVertical: 10,
+    width: 100,
+  },
+  levelNode: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    borderWidth: 4,
+    borderColor: '#FFF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    backgroundColor: '#FFD54F' // Default
   },
-  infoNivel: {
-    flex: 1,
+  levelLocked: {
+    backgroundColor: '#B0BEC5',
+    borderColor: '#78909C'
   },
-  tituloNivel: {
-    fontSize: 18,
-    fontWeight: '600',
+  levelUnlocked: {
+    backgroundColor: '#FFCA28',
+    borderColor: '#FFF59D'
+  },
+  levelCurrent: {
+    backgroundColor: '#F06292', // Rosa vibrante para el actual
+    transform: [{ scale: 1.15 }],
+    borderColor: '#F8BBD0'
+  },
+  levelNumber: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#FFF',
+    textShadowColor: 'rgba(0,0,0,0.2)',
+    textShadowOffset: {width: 1, height: 1},
+    textShadowRadius: 2
+  },
+  levelName: {
+    marginTop: 8,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
     color: '#333',
+    fontWeight: 'bold',
+    fontSize: 12,
+    textAlign: 'center',
+    overflow: 'hidden'
   },
-  descripcionNivel: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
+  pathVertical: {
+    height: 30,
+    width: 6,
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    borderRadius: 3,
+    marginVertical: 5
   },
+  pathConnector: {
+    height: 50,
+    width: 20,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 5
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.7)'
+  }
 });

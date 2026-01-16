@@ -1,8 +1,6 @@
-// app/(parent)/(tabs)/_layout.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-// Importamos el contexto desde la carpeta (parent)
 import { ParentDataProvider } from '../parentDataContext';
 
 export default function ParentTabLayout() {
@@ -10,7 +8,6 @@ export default function ParentTabLayout() {
   const colorInactivo = '#666';
 
   return (
-    // ¡Aquí está el Proveedor que te faltaba!
     <ParentDataProvider>
       <Tabs
         screenOptions={{
@@ -29,7 +26,6 @@ export default function ParentTabLayout() {
         }}
       >
         <Tabs.Screen
-          // Esta es app/(parent)/(tabs)/index.tsx
           name="index"
           options={{
             title: 'Resumen',
@@ -43,7 +39,6 @@ export default function ParentTabLayout() {
           }}
         />
         <Tabs.Screen
-          // Esta es app/(parent)/(tabs)/progreso.tsx
           name="progreso"
           options={{
             title: 'Progreso',
@@ -56,8 +51,8 @@ export default function ParentTabLayout() {
             ),
           }}
         />
+
         <Tabs.Screen
-          // Esta es app/(parent)/(tabs)/bienestar.tsx
           name="bienestar"
           options={{
             title: 'Bienestar',
@@ -70,7 +65,22 @@ export default function ParentTabLayout() {
             ),
           }}
         />
+         <Tabs.Screen
+          name="crearMomento"
+          options={{
+            title: 'Momentos',
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons
+                name={focused ? 'sparkles' : 'sparkles-outline'}
+                size={26}
+                color={color}
+              />
+            ),
+          }}
+        />
+        
       </Tabs>
+      
     </ParentDataProvider>
   );
 }

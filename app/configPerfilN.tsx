@@ -41,7 +41,6 @@ export default function ChildProfileSetupScreen() {
   const [selectedDifficulty, setSelectedDifficulty] = useState<number | null>(null);
 
   const handleFinish = () => {
-    // Aquí guardarías las preferencias
     router.push('./'); // Navegar al dashboard principal
   };
 

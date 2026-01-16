@@ -3,14 +3,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function ForgotPasswordScreen() {
@@ -26,7 +26,6 @@ export default function ForgotPasswordScreen() {
 
     setIsLoading(true);
 
-    // Aquí irá tu lógica para enviar el email de recuperación
     setTimeout(() => {
       setIsLoading(false);
       Alert.alert(

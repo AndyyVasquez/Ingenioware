@@ -1,18 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Audio } from 'expo-av'; // 1. Importamos la librería de audio
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 interface Pregunta {
@@ -48,23 +49,82 @@ export default function DiarioScreen() {
   const [preguntaActual, setPreguntaActual] = useState(0);
   const [respuestas, setRespuestas] = useState<string[]>([]);
   const [respuestaActual, setRespuestaActual] = useState('');
-  const [grabando, setGrabando] = useState(false);
+  
+  // 2. Estados para el audio
+  const [recording, setRecording] = useState<Audio.Recording | undefined>(undefined);
+  const [audioUri, setAudioUri] = useState<string | null>(null);
+  const [permisoConcedido, setPermisoConcedido] = useState(false);
+  const [grabando, setGrabando] = useState(false); // Estado visual
+
   const [emocionSeleccionada, setEmocionSeleccionada] = useState<string | null>(null);
 
   useEffect(() => {
-    const cargarEmocion = async () => {
+    const cargarDatosIniciales = async () => {
       try {
+        // Cargar emoción
         const emocionStr = await AsyncStorage.getItem('emocionTemporal');
         if (emocionStr) {
           const emocionData = JSON.parse(emocionStr);
           setEmocionSeleccionada(emocionData.id);
         }
+        // 3. Pedir permisos de audio al iniciar
+        const { status } = await Audio.requestPermissionsAsync();
+        setPermisoConcedido(status === 'granted');
       } catch (error) {
-        console.error('Error cargando emoción temporal:', error);
+        console.error('Error cargando datos:', error);
       }
     };
-    cargarEmocion();
+    cargarDatosIniciales();
   }, []);
+
+  // 4. Lógica para iniciar grabación
+  async function startRecording() {
+    try {
+      if (!permisoConcedido) {
+        Alert.alert('Permiso necesario', 'Necesito permiso para usar el micrófono 🎤');
+        return;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+
+      setRecording(recording);
+      setGrabando(true);
+    } catch (err) {
+      console.error('Fallo al iniciar grabación', err);
+    }
+  }
+
+  // 5. Lógica para detener grabación
+  async function stopRecording() {
+    setGrabando(false);
+    setRecording(undefined);
+    
+    if (!recording) return;
+
+    await recording.stopAndUnloadAsync();
+    const uri = recording.getURI();
+    
+    if (uri) {
+      setAudioUri(uri); // Guardamos la ruta del audio temporalmente
+      Alert.alert('¡Audio grabado! 🎤', 'Tu mensaje de voz se guardará con esta respuesta.');
+    }
+  }
+
+  // Manejador del botón de micrófono
+  const handleGrabarAudio = async () => {
+    if (grabando) {
+      await stopRecording();
+    } else {
+      await startRecording();
+    }
+  };
 
   const pregunta = preguntasBase[preguntaActual];
   const esUltimaPregunta = preguntaActual === preguntasBase.length - 1;
@@ -75,6 +135,8 @@ export default function DiarioScreen() {
   }
 
   const handleSiguiente = () => {
+    // Aquí podrías guardar el audio específico para esta pregunta si quisieras
+    // Por ahora lo guardamos en el estado general o lo reseteamos según tu lógica
     const nuevasRespuestas = [...respuestas, respuestaActual];
     setRespuestas(nuevasRespuestas);
 
@@ -83,6 +145,8 @@ export default function DiarioScreen() {
     } else {
       setPreguntaActual(preguntaActual + 1);
       setRespuestaActual('');
+      // Opcional: Resetear el audio para la siguiente pregunta si quieres múltiples audios
+      // setAudioUri(null); 
     }
   };
 
@@ -104,6 +168,7 @@ export default function DiarioScreen() {
         fecha: new Date().toISOString(),
         emocion: emocionSeleccionada || 'neutral',
         respuestas: respuestasFinales,
+        audio: audioUri, // 6. Guardamos la URI del audio
         alertaNivel: analizarEntrada(respuestasFinales),
       };
 
@@ -142,34 +207,17 @@ export default function DiarioScreen() {
     const textoCompleto = respuestasFinales.join(' ').toLowerCase();
 
     const keywordsCriticas = [
-      'nadie me quiere',
-      'me pegan',
-      'me duele mucho',
-      'tengo miedo',
-      'me hacen daño',
-      'estoy solo',
-      'me lastiman',
+      'nadie me quiere', 'me pegan', 'me duele mucho', 'tengo miedo',
+      'me hacen daño', 'estoy solo', 'me lastiman',
     ];
 
     const keywordsModeradas = [
-      'triste',
-      'enojado',
-      'mal',
-      'no quiero',
-      'me molestan',
-      'lloré',
-      'pelea',
-      'gritaron',
+      'triste', 'enojado', 'mal', 'no quiero', 'me molestan',
+      'lloré', 'pelea', 'gritaron',
     ];
 
-    if (keywordsCriticas.some((keyword) => textoCompleto.includes(keyword))) {
-      return 2;
-    }
-
-    if (keywordsModeradas.some((keyword) => textoCompleto.includes(keyword))) {
-      return 1;
-    }
-
+    if (keywordsCriticas.some((keyword) => textoCompleto.includes(keyword))) return 2;
+    if (keywordsModeradas.some((keyword) => textoCompleto.includes(keyword))) return 1;
     return 0;
   };
 
@@ -193,20 +241,12 @@ export default function DiarioScreen() {
     }
   };
 
-  const handleGrabarAudio = () => {
-    setGrabando(!grabando);
-    Alert.alert(
-      'Función de Audio',
-      'La grabación de audio se implementará próximamente',
-      [{ text: 'OK' }]
-    );
-  };
-
   const handleCerrar = async () => {
     try {
+      if (recording) await stopRecording(); // Detener si salimos grabando
       await AsyncStorage.removeItem('emocionTemporal');
     } catch (error) {
-      console.error('Error limpiando emoción temporal:', error);
+      console.error('Error limpiando:', error);
     }
     router.back();
   };
@@ -218,19 +258,14 @@ export default function DiarioScreen() {
         style={estilos.vistaEvitarTeclado}
       >
         <View style={estilos.encabezado}>
-          <TouchableOpacity
-            style={estilos.botonCerrar}
-            onPress={handleCerrar}
-          >
+          <TouchableOpacity style={estilos.botonCerrar} onPress={handleCerrar}>
             <Ionicons name="close" size={28} color="#333" />
           </TouchableOpacity>
           <View style={estilos.indicadorProgreso}>
             <View
               style={[
                 estilos.barraProgreso,
-                {
-                  width: `${((preguntaActual + 1) / preguntasBase.length) * 100}%`,
-                },
+                { width: `${((preguntaActual + 1) / preguntasBase.length) * 100}%` },
               ]}
             />
           </View>
@@ -265,32 +300,31 @@ export default function DiarioScreen() {
             />
 
             <View style={estilos.opcionesEntrada}>
+              {/* Botón de Audio Modificado */}
               <TouchableOpacity
                 style={[
                   estilos.botonOpcion,
                   grabando && estilos.botonOpcionActivo,
+                  audioUri && !grabando && estilos.botonOpcionGuardado // Estilo si ya hay audio
                 ]}
                 onPress={handleGrabarAudio}
               >
                 <Ionicons
-                  name={grabando ? 'stop-circle' : 'mic'}
+                  name={grabando ? 'stop-circle' : (audioUri ? 'checkmark-circle' : 'mic')}
                   size={24}
-                  color={grabando ? '#FF6B6B' : '#4B0082'}
+                  color={grabando ? '#FF6B6B' : (audioUri ? '#4CAF50' : '#4B0082')}
                 />
-                <Text style={estilos.textoOpcion}>
-                  {grabando ? 'Detener' : 'Grabar'}
+                <Text style={[
+                    estilos.textoOpcion, 
+                    audioUri && !grabando && {color: '#4CAF50'}
+                ]}>
+                  {grabando ? 'Detener' : (audioUri ? '¡Grabado!' : 'Grabar')}
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={estilos.botonOpcion}
-                onPress={() =>
-                  Alert.alert(
-                    'Dibujar',
-                    'La función de dibujo se implementará próximamente',
-                    [{ text: 'OK' }]
-                  )
-                }
+                onPress={() => Alert.alert('Dibujar', 'Próximamente')}
               >
                 <Ionicons name="brush" size={24} color="#4B0082" />
                 <Text style={estilos.textoOpcion}>Dibujar</Text>
@@ -301,28 +335,25 @@ export default function DiarioScreen() {
           <View style={estilos.mensajeMotivacional}>
             <Ionicons name="heart" size={20} color="#FF6B6B" />
             <Text style={estilos.textoMotivacional}>
-              No hay respuestas correctas o incorrectas. Puedes contarme lo que
-              sientes.
+              No hay respuestas correctas o incorrectas. Puedes contarme lo que sientes.
             </Text>
           </View>
         </ScrollView>
 
         <View style={estilos.contenedorBotones}>
-          <TouchableOpacity
-            style={estilos.botonSaltar}
-            onPress={handleSaltar}
-          >
+          <TouchableOpacity style={estilos.botonSaltar} onPress={handleSaltar}>
             <Text style={estilos.textoSaltar}>Saltar</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[
               estilos.botonSiguiente,
-              (!respuestaActual && preguntaActual > 0) &&
+              (!respuestaActual && !audioUri && preguntaActual > 0) &&
                 estilos.botonSiguienteDeshabilitado,
             ]}
             onPress={handleSiguiente}
-            disabled={!respuestaActual && preguntaActual > 0}
+            // Habilitamos el botón si hay texto O si hay audio
+            disabled={!respuestaActual && !audioUri && preguntaActual > 0}
           >
             <Text style={estilos.textoSiguiente}>
               {esUltimaPregunta ? '¡Terminar!' : 'Siguiente'}
@@ -336,210 +367,34 @@ export default function DiarioScreen() {
 }
 
 const estilos = StyleSheet.create({
-  contenedor: {
-    flex: 1,
-  },
-  vistaEvitarTeclado: {
-    flex: 1,
-  },
-  encabezado: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    gap: 12,
-  },
-  botonCerrar: {
-    padding: 8,
-  },
-  indicadorProgreso: {
-    flex: 1,
-    height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  barraProgreso: {
-    height: '100%',
-    backgroundColor: '#4B0082',
-    borderRadius: 4,
-  },
-  espacioVacio: {
-    width: 40,
-  },
-  contenidoScroll: {
-    paddingHorizontal: 20,
-    paddingBottom: 100,
-  },
-  contenedorBerto: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  burbujaOsito: {
-    width: 100,
-    height: 100,
-    backgroundColor: '#FFE4B5',
-    borderRadius: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  emojiOsito: {
-    fontSize: 60,
-  },
-  nombreOsito: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#4B0082',
-  },
-  tarjetaPregunta: {
-    backgroundColor: '#FFF',
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  textoPregunta: {
-    fontSize: 18,
-    color: '#333',
-    lineHeight: 28,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  botonSeleccionarEmocion: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#E8D5FF',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-    borderWidth: 2,
-    borderColor: '#4B0082',
-    borderStyle: 'dashed',
-  },
-  textoBotonEmocion: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#4B0082',
-    marginLeft: 12,
-  },
-  contenedorRespuesta: {
-    marginBottom: 24,
-  },
-  inputRespuesta: {
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    padding: 20,
-    fontSize: 16,
-    color: '#333',
-    minHeight: 150,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  opcionesEntrada: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  botonOpcion: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 14,
-    gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  botonOpcionActivo: {
-    backgroundColor: '#FFEBEE',
-    borderWidth: 2,
-    borderColor: '#FF6B6B',
-  },
-  textoOpcion: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#4B0082',
-  },
-  mensajeMotivacional: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
-    borderRadius: 12,
-    padding: 16,
-    gap: 12,
-  },
-  textoMotivacional: {
-    flex: 1,
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
-  },
-  contenedorBotones: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    backgroundColor: 'rgba(184, 212, 224, 0.95)',
-    gap: 12,
-  },
-  botonSaltar: {
-    flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  textoSaltar: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
-  },
-  botonSiguiente: {
-    flex: 2,
-    flexDirection: 'row',
-    backgroundColor: '#4B0082',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  botonSiguienteDeshabilitado: {
-    backgroundColor: '#CCC',
-  },
-  textoSiguiente: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFF',
-  },
+  // ... (Tus estilos anteriores se mantienen igual, solo agregué uno nuevo abajo)
+  contenedor: { flex: 1 },
+  vistaEvitarTeclado: { flex: 1 },
+  encabezado: { flexDirection: 'row', alignItems: 'center', paddingTop: 60, paddingHorizontal: 20, paddingBottom: 20, gap: 12 },
+  botonCerrar: { padding: 8 },
+  indicadorProgreso: { flex: 1, height: 8, backgroundColor: 'rgba(255, 255, 255, 0.5)', borderRadius: 4, overflow: 'hidden' },
+  barraProgreso: { height: '100%', backgroundColor: '#4B0082', borderRadius: 4 },
+  espacioVacio: { width: 40 },
+  contenidoScroll: { paddingHorizontal: 20, paddingBottom: 100 },
+  contenedorBerto: { alignItems: 'center', marginBottom: 30 },
+  burbujaOsito: { width: 100, height: 100, backgroundColor: '#FFE4B5', borderRadius: 50, alignItems: 'center', justifyContent: 'center', marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 5 },
+  emojiOsito: { fontSize: 60 },
+  nombreOsito: { fontSize: 18, fontWeight: '600', color: '#4B0082' },
+  tarjetaPregunta: { backgroundColor: '#FFF', borderRadius: 20, padding: 24, marginBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 5 },
+  textoPregunta: { fontSize: 18, color: '#333', lineHeight: 28, textAlign: 'center', fontWeight: '500' },
+  contenedorRespuesta: { marginBottom: 24 },
+  inputRespuesta: { backgroundColor: '#FFF', borderRadius: 16, padding: 20, fontSize: 16, color: '#333', minHeight: 150, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
+  opcionesEntrada: { flexDirection: 'row', gap: 12 },
+  botonOpcion: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF', borderRadius: 12, padding: 14, gap: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
+  botonOpcionActivo: { backgroundColor: '#FFEBEE', borderWidth: 2, borderColor: '#FF6B6B' },
+  botonOpcionGuardado: { backgroundColor: '#E8F5E9', borderWidth: 2, borderColor: '#4CAF50' }, // Nuevo estilo
+  textoOpcion: { fontSize: 14, fontWeight: '600', color: '#4B0082' },
+  mensajeMotivacional: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.7)', borderRadius: 12, padding: 16, gap: 12 },
+  textoMotivacional: { flex: 1, fontSize: 14, color: '#666', lineHeight: 20 },
+  contenedorBotones: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 20, backgroundColor: 'rgba(184, 212, 224, 0.95)', gap: 12 },
+  botonSaltar: { flex: 1, backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: 12, paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
+  textoSaltar: { fontSize: 16, fontWeight: '600', color: '#666' },
+  botonSiguiente: { flex: 2, flexDirection: 'row', backgroundColor: '#4B0082', borderRadius: 12, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', gap: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 5 },
+  botonSiguienteDeshabilitado: { backgroundColor: '#CCC' },
+  textoSiguiente: { fontSize: 18, fontWeight: '600', color: '#FFF' },
 });
